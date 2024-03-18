@@ -1,7 +1,9 @@
 # Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
 
 $indir: directory with input fastq files
+
 $outdir: directory for output
+
 $sarsCovRef: SARS-Cov-2 reference genome fasta file
 
 ## 1. Concatenate fastq files
@@ -18,8 +20,11 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 ### Parameters
 **--inbam, -i** input bam file
+
 **--outbam, -o** output bam file
+
 **--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept bam records that start matching +/- 20 nt.  from expected pos
+<<<<<<< HEAD
 **--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel
 MN908947.3	25	50	SARS-CoV-2_1_LEFT	1	+	AACAAACCAACCAACTTTCGATCTC
 MN908947.3	408	431	SARS-CoV-2_1_RIGHT	1	-	CTTCTACTAAGCCACAAGTGCCA
@@ -31,3 +36,4 @@ MN908947.3	705	727	SARS-CoV-2_2_RIGHT	2	-	ATAAGGATCAGTGCCAAGCTCG
 A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.
 Only files with the extension .bed are considered.
 Example bed files are in the AmpliconPanels directory
+
