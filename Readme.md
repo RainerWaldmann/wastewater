@@ -1,7 +1,9 @@
 # Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
 
 $indir: directory with input fastq files
+
 $outdir: directory for output
+
 $sarsCovRef: SARS-Cov-2 reference genome fasta file
 
 ## 1. Concatenate fastq files
