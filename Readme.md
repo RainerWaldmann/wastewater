@@ -20,6 +20,10 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 ### Parameters
 **--inbam, -i** input bam file
+
 **--outbam, -o** output bam file
+
 **--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept bam records that start matching +/- 20 nt.  from expected pos
+
 **--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel
+
