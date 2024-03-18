@@ -16,7 +16,7 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 ## 3. Trim amplification primers
 
-    java -jar  <path to jar>/CovidVariantFilter-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
+    java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
 
 ### Parameters
 **--inbam, -i** input bam file
@@ -43,3 +43,17 @@ A row with a forward primer is  followed by a  row with a reverse primer. A row 
 Only files with the extension .bed are considered.
 
 Example bed files are in the AmpliconPanels directory
+
+**--writesplitbams, -s** writes one additional output bam for each amplicon panel, optional flag
+
+**--writeNonMatching, -n** writes an additional output bam for non assigned records, Use this flag to find errors in amplicon bed files. optional flag
+
+## 4. Generate variation frequency data
+generate a TSV file with frequencies for each variation
+**mpileup**
+
+    samtools mpileup  -A -d 600000 -B -Q 0   --reverse-del -f $sarsCovRef $outDir/outbam.bam  > $outDir/out.mpileup
+
+**mpileupparser** ./Java/MpileupParser
+
+    java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/var.tsv
