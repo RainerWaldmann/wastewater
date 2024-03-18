@@ -15,7 +15,7 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
     minimap2 -a  -t 90 $sarsCovRef $outdir/merged.fastq.gz | samtools view -bS -F 4 - | samtools sort -@ 30 -m 6G -o $outDir/tmp.bam -	&& $samtools index $outDir/tmp.bam 
 
 ## 3. Trim amplification primers
-
+    custom java software , jar: ./Java/TilingAmpliconParser
     java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
 
 ### Parameters
@@ -34,11 +34,19 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 1st Column: Name of reference genome
 
-2nd Column: Position of the most 5' nucleotide of the primer on the reference genome
+2nd Column: Most 5' pos on the reference genome
 
-3rd Column: Name of the primer. must end with _\<amplicon number>_<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+3rd Column: Most 3' pos on the reference genome
 
-A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.
+4th Column: Name of the primer. must end with _\<amplicon number>_<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+
+5th Column: primer pool (typically 1 or 2)
+
+6th column: strand , + for forward primer, - for reverse primer
+
+7th column: primer sequence
+
+**A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.**
 
 Only files with the extension .bed are considered.
 
@@ -50,10 +58,15 @@ Example bed files are in the AmpliconPanels directory
 
 ## 4. Generate variation frequency data
 generate a TSV file with frequencies for each variation
+
 **mpileup**
 
-    samtools mpileup  -A -d 600000 -B -Q 0   --reverse-del -f $sarsCovRef $outDir/outbam.bam  > $outDir/out.mpileup
+    samtools mpileup -A -d 600000 -B -Q 0 --reverse-del -f $sarsCovRef $outDir/outbam.bam > $outDir/out.mpileup
 
-**mpileupparser** ./Java/MpileupParser
 
-    java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/var.tsv
+**mpileupparser**
+
+custom java software ,jar : ./Java/MpileupParser
+ 
+
+    java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
