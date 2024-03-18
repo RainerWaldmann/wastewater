@@ -1,0 +1,10 @@
+# Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
+
+# 1. Concatenate fastq files
+$indir: directory with input fastq files
+$outdir: directory for output
+$sarsCovRef: SARS-Cov-2 reference genome fasta file
+cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
+ 
+# 2. Map to SARS-Cov-2 genome
+minimap2 -a  -t 90 $sarsCovRef $outdir/merged.fastq.gz | samtools view -bS -F 4 - | samtools sort -@ 30 -m 6G -o $outDir/tmp.bam -	&& samtools index $outDir/tmp.bam 
