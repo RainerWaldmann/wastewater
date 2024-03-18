@@ -33,8 +33,13 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
     MN908947.3	705	727	SARS-CoV-2_2_RIGHT	2	-	ATAAGGATCAGTGCCAAGCTCG
 
 1st Column: Name of reference genome
+
 2nd Column: Position of the most 5' nucleotide of the primer on the reference genome
+
 3rd Column: Name of the primer. must end with _\<amplicon number>_<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+
 A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.
+
 Only files with the extension .bed are considered.
+
 Example bed files are in the AmpliconPanels directory
