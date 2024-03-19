@@ -6,7 +6,9 @@ $outdir: directory for output
 
 $sarsCovRef: SARS-Cov-2 reference genome fasta file
 
-## 1. Concatenate fastq files
+# Mapping etc. (each sample)
+
+## 1. Concatenate fastq files 
 
 cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
  
@@ -18,19 +20,27 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
     custom java software , jar: ./Java/TilingAmpliconParser
     java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
 
+generates an output bam file where primers are soft-clipped in the SAM records. Only SAM records consistent with an amplicon defined in the bed files are written to the output bam file.
+Also generates a tsv file *.TrimStats.tsv with the number of SAM record matching each amplicon.
+
+
 ### Parameters
 **--inbam, -i** input bam file
 
 **--outbam, -o** output bam file
 
-**--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept bam records that start matching +/- 20 nt.  from expected pos
+**--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept sam records that start matching +/- 20 nt.  from expected pos
 
-**--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel
+**--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel. Columns are tab delimited
+
+Example for two amplicons:
 
     MN908947.3	25	50	SARS-CoV-2_1_LEFT	1	+	AACAAACCAACCAACTTTCGATCTC
     MN908947.3	408	431	SARS-CoV-2_1_RIGHT	1	-	CTTCTACTAAGCCACAAGTGCCA
     MN908947.3	324	344	SARS-CoV-2_2_LEFT	2	+	TTTACAGGTTCGCGACGTGC
     MN908947.3	705	727	SARS-CoV-2_2_RIGHT	2	-	ATAAGGATCAGTGCCAAGCTCG
+    MN908947.3	644	666	SARS-CoV-2_3_LEFT	1	+	GTAATAAAGGAGCTGGTGGCCA
+    MN908947.3	1017	1044	SARS-CoV-2_3_RIGHT	1	-	GCCAATTTAATTTCAAAAGGTGTCTGC
 
 1st Column: Name of reference genome
 
@@ -38,7 +48,7 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 3rd Column: Most 3' pos on the reference genome
 
-4th Column: Name of the primer. must end with _\<amplicon number>_<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+4th Column: Name of the primer. must end with _\<amplicon number>_\<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
 
 5th Column: primer pool (typically 1 or 2)
 
@@ -46,27 +56,37 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 
 7th column: primer sequence
 
-**A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.**
+**A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.** If there are e.g. two optional reverse primers for an amplicon the forward primer has to be repeated with another name.
 
 Only files with the extension .bed are considered.
 
 Example bed files are in the AmpliconPanels directory
 
-**--writesplitbams, -s** writes one additional output bam for each amplicon panel, optional flag
+**--writesplitbams, -s : ** writes one additional output bam for each amplicon panel, optional flag
 
-**--writeNonMatching, -n** writes an additional output bam for non assigned records, Use this flag to find errors in amplicon bed files. optional flag
+**--writeNonMatching, -n : ** writes an additional output bam for non assigned records, Use this flag to find errors in amplicon bed files. optional flag
 
 ## 4. Generate variation frequency data
+
 generate a TSV file with frequencies for each variation
 
-**mpileup**
+**mpileup** generates a text pileup file
 
     samtools mpileup -A -d 600000 -B -Q 0 --reverse-del -f $sarsCovRef $outDir/outbam.bam > $outDir/out.mpileup
 
 
-**mpileupparser**
+**mpileupparser** parses the pileup file and generates a variation frequency table
 
 custom java software ,jar : ./Java/MpileupParser
- 
 
     java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
+
+an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since We filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those information for indels.
+
+## 4. Generate sequencing depth data
+
+samtools depth $outDir/outbam.bam > $outDir/depth.tsv
+
+# Data Analysis 
+
+Python script
