@@ -6,7 +6,7 @@ $outdir: directory for output
 
 $sarsCovRef: SARS-Cov-2 reference genome fasta file
 
-# Mapping etc. (each sample)
+# Mapping, generation of variation frequency tables (each sample)
 
 ## 1. Concatenate fastq files 
 
@@ -81,7 +81,7 @@ custom java software ,jar : ./Java/MpileupParser
 
     java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
 
-an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since We filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those information for indels.
+an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since We filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those informations for indels.
 
 ## 4. Generate sequencing depth data
 
@@ -89,7 +89,27 @@ an alternate option is the iVar software https://github.com/andersen-lab/ivar. H
 
 # Data Analysis 
 
-Python script 
+Python scripts parse folders in --inputDir , The folder name is used as the sample name.
+
+Each folder must contain:
+
+a variation frequency file with a name ending with 'ivar.tsv'
+
+a sequencing depth data file with a name ending with 'depth.tsv'
+
+Output will be written to the folder provided as --inputDir
+
+ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv' and folders with names starting with '_'.
+
+
+**Data filtering**
+First, the files from the different folders (samples) are read and the variation frequency data are filtered
+The following variations are filtered out:
+1) variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : settings.conditionALT_QUAL
+2) Alterations with an imbalance of forward and reverse reads supporting the variation of at least a factor of 5. Optional, active if settings.do_filter_FWD_REV_balance=True. Max Imbalance is defined in settings.maxALT_FwdRevImbalance
+3) Indels that are not a multiple of 3. Since the vast majority of the Sars-Cov-2 genome is coding, such indels are likely sequencing artefacts are currently excluded.
+
+
 
 
 ## Variant definition file
