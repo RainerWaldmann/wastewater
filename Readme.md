@@ -81,7 +81,7 @@ custom java software ,jar : ./Java/MpileupParser
 
     java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
 
-an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since We filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those informations for indels.
+an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since we filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those informations for indels.
 
 ## 4. Generate sequencing depth data
 
@@ -89,30 +89,31 @@ an alternate option is the iVar software https://github.com/andersen-lab/ivar. H
 
 # Data Analysis 
 
-Python scripts parse folders in --inputDir , The folder name is used as the sample name.
+Python scripts parses folders in --inputDir , The folder name is used as the sample name.
 
-Each folder must contain:
+Each folder corresponds to one sample and must contain:
 
-a variation frequency file with a name ending with 'ivar.tsv'
-
-a sequencing depth data file with a name ending with 'depth.tsv'
+ - a variation frequency file with a name ending with 'ivar.tsv'      
+ - a sequencing depth data file with a name ending with 'depth.tsv'
 
 Output will be written to the folder provided as --inputDir
 
 ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv' and folders with names starting with '_'.
 
+## Data filtering
 
-**Data filtering**
 First, the files from the different folders (samples) are read and the variation frequency data are filtered
 The following variations are filtered out:
-1) variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : settings.conditionALT_QUAL
-2) Alterations with an imbalance of forward and reverse reads supporting the variation of at least a factor of 5. Optional, active if settings.do_filter_FWD_REV_balance=True. Max Imbalance is defined in settings.maxALT_FwdRevImbalance
-3) Indels that are not a multiple of 3. Since the vast majority of the Sars-Cov-2 genome is coding, such indels are likely sequencing artefacts are currently excluded.
+- Variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : settings.conditionALT_QUAL
+- Variations with an imbalanced forward/reverse read ratio of at least 7 . Optional, active if settings.do_filter_FWD_REV_balance=True. Max Imbalance is defined in settings.maxALT_FwdRevImbalance
+- Indels that are not multiples of three. Since the vast majority of the Sars-Cov-2 genome is coding, such indels are likely sequencing artefacts and are currently excluded.
 
 
+## Variant Frequencies
 
+The Mutation frequencies for each lineage's characteristic mutations were extracted from the variation frequency tables for each sample. The frequency of each lineage was set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, marking values exceeding 0.4 times the IQR below the first quartile or above the third quartile as outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean were preserved. For lineages defined by more than four mutations.
 
-## Variant definition file
+**Variant definition file**
 a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
 
 |    | variant                         | Delta                | Omicron                                                                                                  | BA.1                 | BA.1.1              | BA.2                                            | BA.2.10.1                          | BA.2.12.1            | BA.2.75              | BA.4               | BA.5                                                                        | BA.4_BA.5                         | BQ.1                 | BQ.1.1               | XBB                                  | XBB.1               | #XBB.1.9             | #XBB.1.16            | #XBB.1.5               | XBB.2               | XBB.3                | XBB.4               | XBB.5               | CH.1                 | BN.1                 | BF.5                 | BF.7                | XBF                 | EG.5                 | BA.2.86               | BA.2.86.1.1          | BA.2.86.1.1.1        | Unnamed: 32   | Unnamed: 33   | Unnamed: 34   | #Columns starting with # are ignored   |
