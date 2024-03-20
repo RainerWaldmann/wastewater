@@ -100,6 +100,8 @@ Output will be written to the folder provided as --inputDir
 
 ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv' and folders with names starting with '_'.
 
+uses multithreading as much as this is possible with Python
+
 ## Data filtering
 
 First, the files from the different folders (samples) are read and the variation frequency data are filtered
@@ -118,18 +120,21 @@ a tsv file containing variant defining mutations , hierarchy and instructions fo
 
 **Columns:**
 
--Variant: Name of the variant  
--variant_altname: Alternate name, can be empty. Currently not used by script.  
--comment: Nothing or comment which is not used by script.  
--parent: The parent lineage (must be a lineage in this table) or empty if no parent lineage or if parent not in table.  
--excempt from child sum: Defaults to false. Means the variant is ignored when sums of all child lineages of a parent lineage are calculated. Is typically set true for 'helper' lineages such as BA.4_BA.5 in the table. BA.4 and BA.5 don't have a parent child lineage relationship, however all mutations of BA.5 are found in BA.4. We are using BA.4_BA.5 as a virtual helper lineage that contains mutations common in BA.4 and BA.5.  
--virtual parent: BA.4_BA.5 has the mutations of BA.2. For frequency calculations BA.2 is used as a virtual parent of BA.4_BA.5  
--remove counts from virtual parent: True for BA.4_BA.5 since they share all BA.2 mutations and BA4_BA5 frequency needs to be substracted from BA.2 frequency  
--min muts for pass: Variant is only considered present if the minimal number of mutations are present after outlier filtering.  
--min * muts for pass: Mutations can be marked as important by preceeding the mutation with a '*'. The number here defines the number of those * - flagged mutatants required for presence of the variant 
--calcstrategy: BA.5 freq is calculated by substracting the BA.4 frequency from the frequency of the virtual BA.4_BA.5 lineage. The instruction is provided in the following format: BA.4_BA.5:-:BA.4. Means substract BA.4 from BA.4_BA.5; ':' is just a delimiter 
--print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
--histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/<index>) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar). The relative order within a bar can be defined as follows. XBB/3-3 means the variant will be shown in the fourth histogram bar (XBB/3). The order how the variants are shown within the bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ...  
+- Variant: Name of the variant  
+- variant_altname: Alternate name, can be empty. Currently not used by script.  
+- comment: Nothing or comment which is not used by script.  
+- parent: The parent lineage (must be a lineage in this table) or empty if no parent lineage or if parent not in table.  
+- excempt from child sum: Defaults to false. Means the variant is ignored when sums of all child lineages of a parent lineage are calculated. Is typically set true for 'helper' lineages such as BA.4_BA.5 in the table. BA.4 and BA.5 don't have a parent child lineage relationship, however all mutations of BA.5 are found in BA.4. We are using BA.4_BA.5 as a virtual helper lineage that contains mutations common in BA.4 and BA.5.  
+- virtual parent: BA.4_BA.5 has the mutations of BA.2. For frequency calculations BA.2 is used as a virtual parent of BA.4_BA.5  
+- remove counts from virtual parent: True for BA.4_BA.5 since they share all BA.2 mutations and BA4_BA5 frequency needs to be substracted from BA.2 frequency  
+- min muts for pass: Variant is only considered present if the minimal number of mutations are present after outlier filtering.  
+- min * muts for pass: Mutations can be marked as important by preceeding the mutation with a '*'. The number here defines the number of those * - flagged mutatants required for presence of the variant 
+- calcstrategy: BA.5 freq is calculated by substracting the BA.4 frequency from the frequency of the virtual BA.4_BA.5 lineage. The instruction is provided in the following format: BA.4_BA.5:-:BA.4. Means substract BA.4 from BA.4_BA.5; ':' is just a delimiter 
+- print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
+- histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/<index>) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar). The relative order within a bar can be defined as follows. XBB/3-3 means the variant will be shown in the fourth histogram bar (XBB/3). The order how the variants are shown within the bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ... 
+- color: The color used for the variant in histograms and pie charts  
+- mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. 
+
 
 
 
