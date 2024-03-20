@@ -111,10 +111,31 @@ The following variations are filtered out:
 
 ## Variant Frequencies
 
-The Mutation frequencies for each lineage's characteristic mutations were extracted from the variation frequency tables for each sample. The frequency of each lineage was set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, marking values exceeding 0.4 times the IQR below the first quartile or above the third quartile as outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean were preserved. For lineages defined by more than four mutations.
+The Mutation frequencies for each lineage's characteristic mutations were extracted from the variation frequency tables for each sample. The frequency of each lineage was set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.4 times the IQR below the first quartile or above the third quartile as outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean were preserved. For lineages defined by more than four mutations. 
 
-**Variant definition file**
+**Variant definition file**  
 a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
+
+**Columns:**
+
+-Variant: Name of the variant  
+-variant_altname: Alternate name, can be empty. Currently not used by script.  
+-comment: Nothing or comment which is not used by script.  
+-parent: The parent lineage (must be a lineage in this table) or empty if no parent lineage or if parent not in table.  
+-excempt from child sum: Defaults to false. Means the variant is ignored when sums of all child lineages of a parent lineage are calculated. Is typically set true for 'helper' lineages such as BA.4_BA.5 in the table. BA.4 and BA.5 don't have a parent child lineage relationship, however all mutations of BA.5 are found in BA.4. We are using BA.4_BA.5 as a virtual helper lineage that contains mutations common in BA.4 and BA.5.  
+-virtual parent: BA.4_BA.5 has the mutations of BA.2. For frequency calculations BA.2 is used as a virtual parent of BA.4_BA.5  
+-remove counts from virtual parent: True for BA.4_BA.5 since they share all BA.2 mutations and BA4_BA5 frequency needs to be substracted from BA.2 frequency  
+-min muts for pass: Variant is only considered present if the minimal number of mutations are present after outlier filtering.  
+-min * muts for pass: Mutations can be marked as important by preceeding the mutation with a '*'. The number here defines the number of those * - flagged mutatants required for presence of the variant 
+-calcstrategy: BA.5 freq is calculated by substracting the BA.4 frequency from the frequency of the virtual BA.4_BA.5 lineage. The instruction is provided in the following format: BA.4_BA.5:-:BA.4. Means substract BA.4 from BA.4_BA.5; ':' is just a delimiter 
+-print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
+-histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/<index>) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar). The relative order within a bar can be defined as follows. XBB/3-3 means the variant will be shown in the fourth histogram bar (XBB/3). The order how the variants are shown within the bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ...  
+
+
+
+
+
+
 
 |    | variant                         | Delta                | Omicron                                                                                                  | BA.1                 | BA.1.1              | BA.2                                            | BA.2.10.1                          | BA.2.12.1            | BA.2.75              | BA.4               | BA.5                                                                        | BA.4_BA.5                         | BQ.1                 | BQ.1.1               | XBB                                  | XBB.1               | #XBB.1.9             | #XBB.1.16            | #XBB.1.5               | XBB.2               | XBB.3                | XBB.4               | XBB.5               | CH.1                 | BN.1                 | BF.5                 | BF.7                | XBF                 | EG.5                 | BA.2.86               | BA.2.86.1.1          | BA.2.86.1.1.1        | Unnamed: 32   | Unnamed: 33   | Unnamed: 34   | #Columns starting with # are ignored   |
 |---:|:--------------------------------|:---------------------|:---------------------------------------------------------------------------------------------------------|:---------------------|:--------------------|:------------------------------------------------|:-----------------------------------|:---------------------|:---------------------|:-------------------|:----------------------------------------------------------------------------|:----------------------------------|:---------------------|:---------------------|:-------------------------------------|:--------------------|:---------------------|:---------------------|:-----------------------|:--------------------|:---------------------|:--------------------|:--------------------|:---------------------|:---------------------|:---------------------|:--------------------|:--------------------|:---------------------|:----------------------|:---------------------|:---------------------|:--------------|:--------------|:--------------|:---------------------------------------|
