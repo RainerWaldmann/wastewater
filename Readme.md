@@ -91,7 +91,10 @@ an alternate option is the iVar software https://github.com/andersen-lab/ivar. H
 
 Python scripts parses folders in --inputDir , The folder name is used as the sample name.
 
-Each folder corresponds to one sample and must contain:
+Usage:
+    python main.py --inputDir [path to folder that contains one folder per sample]
+
+Each folder within the specified folder corresponds to one sample and must contain:
 
  - a variation frequency file with a name ending with 'ivar.tsv'      
  - a sequencing depth data file with a name ending with 'depth.tsv'
@@ -133,7 +136,7 @@ a tsv file containing variant defining mutations , hierarchy and instructions fo
 - print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
 - histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/<index>) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar). The relative order within a bar can be defined as follows. XBB/3-3 means the variant will be shown in the fourth histogram bar (XBB/3). The order how the variants are shown within the bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ... 
 - color: The color used for the variant in histograms and pie charts  
-- mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. 
+- mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. Optionally a '/' followed by the amino acid mutation can be added for better lisibility of the table - won't be used by the script. 
 
 
 
