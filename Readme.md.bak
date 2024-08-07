@@ -38,3 +38,7 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.
 Only files with the extension .bed are considered.
 Example bed files are in the AmpliconPanels directory
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes

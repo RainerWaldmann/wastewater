@@ -29,18 +29,27 @@ Also generates a tsv file *.TrimStats.tsv with the number of SAM record matching
 
 **--outbam, -o** output bam file
 
+<<<<<<< Updated upstream
 **--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept sam records that start matching +/- 20 nt.  from expected pos
 
 **--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel. Columns are tab delimited
 
 Example for two amplicons:
+=======
+**--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept bam records that start matching +/- 20 nt.  from expected pos
+
+**--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel
+>>>>>>> Stashed changes
 
     MN908947.3	25	50	SARS-CoV-2_1_LEFT	1	+	AACAAACCAACCAACTTTCGATCTC
     MN908947.3	408	431	SARS-CoV-2_1_RIGHT	1	-	CTTCTACTAAGCCACAAGTGCCA
     MN908947.3	324	344	SARS-CoV-2_2_LEFT	2	+	TTTACAGGTTCGCGACGTGC
     MN908947.3	705	727	SARS-CoV-2_2_RIGHT	2	-	ATAAGGATCAGTGCCAAGCTCG
+<<<<<<< Updated upstream
     MN908947.3	644	666	SARS-CoV-2_3_LEFT	1	+	GTAATAAAGGAGCTGGTGGCCA
     MN908947.3	1017	1044	SARS-CoV-2_3_RIGHT	1	-	GCCAATTTAATTTCAAAAGGTGTCTGC
+=======
+>>>>>>> Stashed changes
 
 1st Column: Name of reference genome
 
