@@ -1,0 +1,19 @@
+##gff-version 3								
+#!gff-spec-version 1.21								
+#!processor NCBI annotwriter								
+#!genome-build ASM985889v3								
+#!genome-build-accession NCBI_Assembly:GCF_009858895.2								
+##sequence-region MN908947.3 1 29903								
+##species https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=2697049								
+MN908947.3	RefSeq	CDS	266	13468	.	+	0	ID=orf1a
+MN908947.3	RefSeq	CDS	13468	21555	.	+	0	ID=orf1b
+MN908947.3	RefSeq	CDS	21563	25384	.	+	0	ID=spike
+MN908947.3	RefSeq	CDS	25393	26220	.	+	0	ID=orf3a
+MN908947.3	RefSeq	CDS	26245	26472	.	+	0	ID=orf4_pE
+MN908947.3	RefSeq	CDS	26523	27191	.	+	0	ID=orf5_pM
+MN908947.3	RefSeq	CDS	27202	27387	.	+	0	ID=orf6
+MN908947.3	RefSeq	CDS	27394	27759	.	+	0	ID=orf7a
+MN908947.3	RefSeq	CDS	27756	27887	.	+	0	ID=orf7b
+MN908947.3	RefSeq	CDS	27894	28259	.	+	0	ID=orf8
+MN908947.3	RefSeq	CDS	28274	29533	.	+	0	ID=N
+MN908947.3	RefSeq	CDS	29558	29674	.	+	0	ID=ORF10
