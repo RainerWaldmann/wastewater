@@ -24,56 +24,50 @@ generates an output bam file where primers are soft-clipped in the SAM records. 
 Also generates a tsv file *.TrimStats.tsv with the number of SAM record matching each amplicon.
 
 
-### Parameters
+### Parameters 
+(required parameters are in bold)
+
 **--inbam, -i** input bam file
 
 **--outbam, -o** output bam file
 
-<<<<<<< Updated upstream
 **--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept sam records that start matching +/- 20 nt.  from expected pos
+
+**optional: --writesplitbams, -s : ** writes one additional output bam for each amplicon panel, optional flag
+
+**optional; --writeNonMatching, -n : ** writes an additional output bam for non assigned records, Use this flag to find errors in amplicon bed files. optional flag
 
 **--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel. Columns are tab delimited
 
-Example for two amplicons:
-=======
-**--fuzzyness, -f** fuzzyness for amplicon ends allowed. e.g. -f 20 will accept bam records that start matching +/- 20 nt.  from expected pos
+Only files with the extension .bed are considered.
 
-**--bedfiles, -b** directory with bed files defining the amplification primers. Typically should contain one bed file per primer panel
->>>>>>> Stashed changes
+Example bed files are in the [AmpliconPanels](AmpliconPanels) directory
+
+
+Example for two amplicons:
 
     MN908947.3	25	50	SARS-CoV-2_1_LEFT	1	+	AACAAACCAACCAACTTTCGATCTC
     MN908947.3	408	431	SARS-CoV-2_1_RIGHT	1	-	CTTCTACTAAGCCACAAGTGCCA
     MN908947.3	324	344	SARS-CoV-2_2_LEFT	2	+	TTTACAGGTTCGCGACGTGC
     MN908947.3	705	727	SARS-CoV-2_2_RIGHT	2	-	ATAAGGATCAGTGCCAAGCTCG
-<<<<<<< Updated upstream
-    MN908947.3	644	666	SARS-CoV-2_3_LEFT	1	+	GTAATAAAGGAGCTGGTGGCCA
-    MN908947.3	1017	1044	SARS-CoV-2_3_RIGHT	1	-	GCCAATTTAATTTCAAAAGGTGTCTGC
-=======
->>>>>>> Stashed changes
 
-1st Column: Name of reference genome
+    1st Column: Name of reference genome
 
-2nd Column: Most 5' pos on the reference genome
+    2nd Column: Most 5' pos on the reference genome
 
-3rd Column: Most 3' pos on the reference genome
+    3rd Column: Most 3' pos on the reference genome
 
-4th Column: Name of the primer. must end with _\<amplicon number>_\<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+    4th Column: Name of the primer. must end with _\<amplicon number>_\<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
 
-5th Column: primer pool (typically 1 or 2)
+    5th Column: primer pool (typically 1 or 2)
 
-6th column: strand , + for forward primer, - for reverse primer
+    6th column: strand , + for forward primer, - for reverse primer
 
-7th column: primer sequence
+    7th column: primer sequence
 
-**A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.** If there are e.g. two optional reverse primers for an amplicon the forward primer has to be repeated with another name.
+    A row with a forward primer is  followed by a  row with a reverse primer. A row with a reverse primer is  followed by a  row with a forward primer.** If there are e.g. two optional reverse primers for an amplicon (e.g. older versions of the Artic panel) the forward primer has to be repeated with another name.
 
-Only files with the extension .bed are considered.
 
-Example bed files are in the AmpliconPanels directory
-
-**--writesplitbams, -s : ** writes one additional output bam for each amplicon panel, optional flag
-
-**--writeNonMatching, -n : ** writes an additional output bam for non assigned records, Use this flag to find errors in amplicon bed files. optional flag
 
 ## 4. Generate variation frequency data
 
@@ -86,19 +80,24 @@ generate a TSV file with frequencies for each variation
 
 **mpileupparser** parses the pileup file and generates a variation frequency table
 
-custom java software ,jar : ./Java/MpileupParser
+ [MpileupParser](Java/MpileupParser/MpileupParser-1.0.jarMpileupParser)
 
     java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
 
-an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since we filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or skewed forward reverse balance.  iVar does not provide those informations for indels.
+an alternate option is the iVar software https://github.com/andersen-lab/ivar. However, we use our custom software since we filter out most of the background variations due to low quality reads by filtering out variations which are only backed by low quality reads or have a skewed forward reverse balance.  iVar does not provide those informations for indels.
 
 ## 4. Generate sequencing depth data
 
     samtools depth $outDir/outbam.bam > $outDir/depth.tsv
 
-# Data Analysis 
+# Variant Analysis 
 
-Python scripts parses folders in --inputDir , The folder name is used as the sample name.
+Python script parses folders in --inputDir , The folder name is used as the sample name and generates:
+ 
+- a html report 
+- variation frequency tables 
+- variant frequencies
+- pdfs with heatmaps, coverage plots ...
 
 Usage:
     > python main.py --inputDir [path to folder that contains one folder per sample]
@@ -107,10 +106,24 @@ Each folder within the specified folder corresponds to one sample and must conta
 
  - a variation frequency file with a name ending with 'ivar.tsv'      
  - a sequencing depth data file with a name ending with 'depth.tsv'
+ 
+ Folder names
+ - ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv'
+- ignores folders with names starting with '_'.
+- if removeFirstCharsFromSampleName = True in [settings.py](CagableaParserV0.3/settings.py), the first characters from the sample name until the first underscore at max pos 5 in the name will be removed. Used to define sorting order
+for example a sample (folder name) AAA_..... will be shown before AAB_ . AAA_ and AAB_ will be removed in graphs, report ..  
 
 Output will be written to the folder provided as --inputDir
 
-ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv' and folders with names starting with '_'.
+Output includes:
+- a html report with heatmaps, coverage plots, variant frequencies
+- a tsv file with variation frequencies, quality values .... : VarFrequencies.tsv . Column naming is similar to that used by the ivar software
+- a tsv file with just variation frequencies: VarFrequenciesLight.tsv
+- a tsv file with sequencing depth data for all positions "CoverageAllPositions.tsv"
+ - a tsv file with sequencing depth data for every tenth position "CoveragePositionsReduced.tsv"
+- a tsv file with mean coverage values: coverageMeans.tsv
+- optionally pdf files with heat maps, pie charts .... See [settings.py](CagableaParserV0.3/settings.py) 
+
 
 uses multithreading as much as this is possible with Python
 
@@ -118,19 +131,19 @@ uses multithreading as much as this is possible with Python
 
 First, the files from the different folders (samples) are read and the variation frequency data are filtered
 The following variations are filtered out:
-- Variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : settings.conditionALT_QUAL
-- Variations with an imbalanced forward/reverse read ratio of at least 7 . Optional, active if settings.do_filter_FWD_REV_balance=True. Max Imbalance is defined in settings.maxALT_FwdRevImbalance
-- Indels that are not multiples of three. Since the vast majority of the Sars-Cov-2 genome is coding, such indels are likely sequencing artefacts and are currently excluded.
+- Variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : conditionALT_QUAL in [settings.py](CagableaParserV0.3/settings.py)
+- Variations with an imbalanced forward/reverse read ratio of at least 3.5 . Optional, active if settings.do_filter_FWD_REV_balance=True in [settings.py](CagableaParserV0.3/settings.py). Max Imbalance is set with settings.maxALT_FwdRevImbalance.
 
+The data are merged into one dataframe.
 
 ## Variant Frequencies
 
-The Mutation frequencies for each lineage's characteristic mutations were extracted from the variation frequency tables for each sample. The frequency of each lineage was set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.4 times the IQR below the first quartile or above the third quartile as outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean were preserved. For lineages defined by more than four mutations. 
+The Mutation frequencies for each lineage's characteristic mutations [settings.py](CagableaParserV0.3/Data/Variants.tsv.txt) are extracted from the variation frequency tables for each sample. The frequency of each lineage is set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.1 times the IQR below the first quartile or above the third quartile as outliers. Can be adjusted with interq_range_outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean are preserved. 
 
 ### Variant definition file  
-a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
+(CagableaParserV0.3/Data/Variants.tsv.txt), a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
 
-**Columns:**
+**Lines:**
 
 - Variant: Name of the variant  
 - variant_altname: Alternate name, can be empty. Currently not used by script.  
@@ -143,8 +156,8 @@ a tsv file containing variant defining mutations , hierarchy and instructions fo
 - min * muts for pass: Mutations can be marked as important by preceeding the mutation with a '*'. The number here defines the number of those * - flagged mutatants required for presence of the variant 
 - calcstrategy: BA.5 freq is calculated by substracting the BA.4 frequency from the frequency of the virtual BA.4_BA.5 lineage. The instruction is provided in the following format: BA.4_BA.5:-:BA.4. Means substract BA.4 from BA.4_BA.5; ':' is just a delimiter 
 - print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
-- histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/[index]) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar). The relative order within a bar can be defined as follows. XBB/3-3 means the variant will be shown in the fourth histogram bar (XBB/3). The order how the variants are shown within the bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ... 
-- color: The color used for the variant in histograms and pie charts  
+- histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/[index]) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar).  The order how the variants are shown within a bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ... 
+- color: A CSS color name, the color used for the variant in histograms and pie charts  
 - mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. Optionally a '/' followed by the amino acid mutation can be added for better lisibility of the table - won't be used by the script. Insertions are currently not treated
 
 
