@@ -17,7 +17,8 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
     minimap2 -a  -t 90 $sarsCovRef $outdir/merged.fastq.gz | samtools view -bS -F 4 - | samtools sort -@ 30 -m 6G -o $outDir/tmp.bam -	&& $samtools index $outDir/tmp.bam 
 
 ## 3. Trim amplification primers
-    custom java software , jar: ./Java/TilingAmpliconParser
+custom java softwarer [TilingAmpliconParser](Java/TilingAmpliconParser/TilingAmpliconParser-1.0.jar) 
+
     java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
 
 generates an output bam file where primers are soft-clipped in the SAM records. Only SAM records consistent with an amplicon defined in the bed files are written to the output bam file.
@@ -80,7 +81,7 @@ generate a TSV file with frequencies for each variation
 
 **mpileupparser** parses the pileup file and generates a variation frequency table
 
- [MpileupParser](Java/MpileupParser/MpileupParser-1.0.jarMpileupParser)
+ [MpileupParser](Java/MpileupParser/MpileupParser-1.0.jar)
 
     java -jar /home/rainer/apps/wastewater/MpileupParser-1.0.jar -i $outDir/out.mpileup -o $outDir/ivar.tsv
 
@@ -92,12 +93,7 @@ an alternate option is the iVar software https://github.com/andersen-lab/ivar. H
 
 # Variant Analysis 
 
-Python script parses folders in --inputDir , The folder name is used as the sample name and generates:
- 
-- a html report 
-- variation frequency tables 
-- variant frequencies
-- pdfs with heatmaps, coverage plots ...
+Python script parses folders in --inputDir , The folder name is used as the sample name 
 
 Usage:
     > python main.py --inputDir [path to folder that contains one folder per sample]
@@ -107,11 +103,11 @@ Each folder within the specified folder corresponds to one sample and must conta
  - a variation frequency file with a name ending with 'ivar.tsv'      
  - a sequencing depth data file with a name ending with 'depth.tsv'
  
- Folder names
+ Input folder names
  - ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv'
 - ignores folders with names starting with '_'.
 - if removeFirstCharsFromSampleName = True in [settings.py](CagableaParserV0.3/settings.py), the first characters from the sample name until the first underscore at max pos 5 in the name will be removed. Used to define sorting order
-for example a sample (folder name) AAA_..... will be shown before AAB_ . AAA_ and AAB_ will be removed in graphs, report ..  
+e.g.  a sample (folder name) AAA_..... will be shown before AAB_ . AAA_ and AAB_ will be removed in sample names in graphs, reports ..  
 
 Output will be written to the folder provided as --inputDir
 
@@ -131,8 +127,8 @@ uses multithreading as much as this is possible with Python
 
 First, the files from the different folders (samples) are read and the variation frequency data are filtered
 The following variations are filtered out:
-- Variations where the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is 7 below the QV of the reads supporting the wild-type sequence. Can be modified : conditionALT_QUAL in [settings.py](CagableaParserV0.3/settings.py)
-- Variations with an imbalanced forward/reverse read ratio of at least 3.5 . Optional, active if settings.do_filter_FWD_REV_balance=True in [settings.py](CagableaParserV0.3/settings.py). Max Imbalance is set with settings.maxALT_FwdRevImbalance.
+- Variation frequencies are set to 0 if the the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is at least 7 below the QV of the reads supporting the wild-type sequence. Can be modified by changing conditionALT_QUAL in [settings.py](CagableaParserV0.3/settings.py)
+- Variations with an imbalanced forward/reverse read ratio of at least 3.5 . Optional, active if settings.do_filter_FWD_REV_balance=True in [settings.py](CagableaParserV0.3/settings.py). Max Imbalance factor is set with settings.maxALT_FwdRevImbalance.
 
 The data are merged into one dataframe.
 
@@ -160,11 +156,31 @@ The Mutation frequencies for each lineage's characteristic mutations [settings.p
 - color: A CSS color name, the color used for the variant in histograms and pie charts  
 - mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. Optionally a '/' followed by the amino acid mutation can be added for better lisibility of the table - won't be used by the script. Insertions are currently not treated
 
+# Identification of multiple mutations in one read
 
 
+### Parameters
+
+- --variantData, -v :
+    tsv file that contains:
+
+    a) first row: names of variants starting in the second column
+
+    b) any row below in the first coulumn the word "mutations"
+
+    c) for each variant the mutations that should be searched for. Same format as in [Variant definition file](Python/CagableaParser/Data/Variants.tsv.txt) used in the Python script for lineage deconvolution. The same file can be used. Just delete column for variants that should not be searched for.
+
+- --inbam, -i : the input bam file to parse
+- --outDir, -o : the output directory
+- --minmuts, -m : the minimal number of variant specific mutations that need to be potentially present in one read
+- --fractionmutsrequired, -f : The fraction of the mutations defined with --minmuts that have to be found.
+- --writeBams, -w (Optional) No parameters: If present, will write a bam file with matching records for each variant. 
 
 
+# Appendix
 
+### Variant definition file
+A file that contains characteristic mutations and plotting instructions for variants
 
 
 |    | variant                         | Delta                | Omicron                                                                                                  | BA.1                 | BA.1.1              | BA.2                                            | BA.2.10.1                          | BA.2.12.1            | BA.2.75              | BA.4               | BA.5                                                                        | BA.4_BA.5                         | BQ.1                 | BQ.1.1               | XBB                                  | XBB.1               | #XBB.1.9             | #XBB.1.16            | #XBB.1.5               | XBB.2               | XBB.3                | XBB.4               | XBB.5               | CH.1                 | BN.1                 | BF.5                 | BF.7                | XBF                 | EG.5                 | BA.2.86               | BA.2.86.1.1          | BA.2.86.1.1.1        | Unnamed: 32   | Unnamed: 33   | Unnamed: 34   | #Columns starting with # are ignored   |
