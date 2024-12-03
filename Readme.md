@@ -19,7 +19,7 @@ cat \$indir/*.fastq.gz >  $outdir/merged.fastq.gz
 ## 3. Trim amplification primers
 custom java softwarer [TilingAmpliconParser](Java/TilingAmpliconParser/TilingAmpliconParser-1.0.jar) 
 
-    java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <path to folder with amplicification primer bed files> -f 20  -o $outDir/outbam.bam
+    java -jar  <path to jar>/TilingAmpliconParser-1.0.jar  trimprimers -i $outDir/tmp.bam -b <[path to folder with amplicification primer bed files](AmpliconPanels/)> -f 20  -o $outDir/outbam.bam
 
 generates an output bam file where primers are soft-clipped in the SAM records. Only SAM records consistent with an amplicon defined in the bed files are written to the output bam file.
 Also generates a tsv file *.TrimStats.tsv with the number of SAM record matching each amplicon.
@@ -42,7 +42,7 @@ Also generates a tsv file *.TrimStats.tsv with the number of SAM record matching
 
 Only files with the extension .bed are considered.
 
-Example bed files are in the [AmpliconPanels](AmpliconPanels) directory
+Bed files for Artic, Varskip and Spike primer panels are in the [AmpliconPanels](AmpliconPanels) directory
 
 
 Example for two amplicons:
@@ -58,7 +58,7 @@ Example for two amplicons:
 
     3rd Column: Most 3' pos on the reference genome
 
-    4th Column: Name of the primer. must end with _\<amplicon number>_\<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
+    4th Column: Name of the primer. must end with _<amplicon number>_<LEFT if forward primer RIGHT if reverse primer>. There must be no other "_" in the primer name. E.g.  SARS-CoV-2_2_LEFT means : Amplicon 2, forward primer
 
     5th Column: primer pool (typically 1 or 2)
 
@@ -103,7 +103,7 @@ Each folder within the specified folder corresponds to one sample and must conta
  - a variation frequency file with a name ending with 'ivar.tsv'      
  - a sequencing depth data file with a name ending with 'depth.tsv'
  
- Input folder names
+ Comments:
  - ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv'
 - ignores folders with names starting with '_'.
 - if removeFirstCharsFromSampleName = True in [settings.py](CagableaParserV0.3/settings.py), the first characters from the sample name until the first underscore at max pos 5 in the name will be removed. Used to define sorting order
@@ -134,7 +134,7 @@ The data are merged into one dataframe.
 
 ## Variant Frequencies
 
-The Mutation frequencies for each lineage's characteristic mutations [settings.py](CagableaParserV0.3/Data/Variants.tsv.txt) are extracted from the variation frequency tables for each sample. The frequency of each lineage is set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.1 times the IQR below the first quartile or above the third quartile as outliers. Can be adjusted with interq_range_outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean are preserved. 
+The Mutation frequencies for each lineage's characteristic mutations [Variants.tsv.txt](CagableaParserV0.3/Data/Variants.tsv.txt) are extracted from the variation frequency tables for each sample. The frequency of each lineage is set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.1 times the IQR below the first quartile or above the third quartile as outliers. Can be adjusted with interq_range_outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean are preserved. 
 
 ### Variant definition file  
 (CagableaParserV0.3/Data/Variants.tsv.txt), a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
@@ -143,7 +143,7 @@ The Mutation frequencies for each lineage's characteristic mutations [settings.p
 
 - Variant: Name of the variant  
 - variant_altname: Alternate name, can be empty. Currently not used by script.  
-- comment: Nothing or comment which is not used by script.  
+- comment: Optional, comment which is not used by script.  
 - parent: The parent lineage (must be a lineage in this table) or empty if no parent lineage or if parent not in table.  
 - excempt from child sum: Defaults to false. Means the variant is ignored when sums of all child lineages of a parent lineage are calculated. Is typically set true for 'helper' lineages such as BA.4_BA.5 in the table. BA.4 and BA.5 don't have a parent child lineage relationship, however all mutations of BA.5 are found in BA.4. We are using BA.4_BA.5 as a virtual helper lineage, which is not printed in the output, that contains mutations common in BA.4 and BA.5.  
 - virtual parent: BA.4_BA.5 has the mutations of BA.2. For frequency calculations BA.2 is used as a virtual parent of BA.4_BA.5  
@@ -153,11 +153,18 @@ The Mutation frequencies for each lineage's characteristic mutations [settings.p
 - calcstrategy: BA.5 freq is calculated by substracting the BA.4 frequency from the frequency of the virtual BA.4_BA.5 lineage. The instruction is provided in the following format: BA.4_BA.5:-:BA.4. Means substract BA.4 from BA.4_BA.5; ':' is just a delimiter 
 - print: Whether variant should be printed in pie charts, histograms ... Is e.g. set false for the virtual lineage BA.4_BA.5  
 - histogram group: Instructions on how histogram bars with variant frequencies are organized. E.g. delta/0 (name/[index]) means group named delta is first bar in histogram, omicron/1 -> second histogram bar (the omicron sublineages that have the omicron/1 group will be shown in this histogram bar).  The order how the variants are shown within a bar can be defined by the second index. E.G. XBB/3-1 -- XBB/3-2 -- XBB/3-3 ... 
-- color: A CSS color name, the color used for the variant in histograms and pie charts  
+- color: A CSS color name or hex color, the color used for the variant in histograms and pie charts  
 - mutations: Mutations characterizing a variant.  Substitutions: e.g. C16466T , deletions: e.g. 28362del9 means nine nucleotides are deleted , first deleted position is 28362. Optionally a '/' followed by the amino acid mutation can be added for better lisibility of the table - won't be used by the script. Insertions are currently not treated
 
 # Identification of multiple mutations in one read
 
+    java -jar  TilingAmpliconParser-1.0.jar  splitvariants -inbam \<input bam file\> --outDir \<output directory\> --variantData  \<TSV file with info on mutations\> --minmuts 5 --fractionmutsrequired 0.8
+
+    
+will parse the -inbam and write results into --outDir
+Output:
+Stats.tsv : number of hits for each variant
+One bam file per variant if the --writeBams option is provided
 
 ### Parameters
 
@@ -168,12 +175,12 @@ The Mutation frequencies for each lineage's characteristic mutations [settings.p
 
     b) any row below in the first coulumn the word "mutations"
 
-    c) for each variant the mutations that should be searched for. Same format as in [Variant definition file](Python/CagableaParser/Data/Variants.tsv.txt) used in the Python script for lineage deconvolution. The same file can be used. Just delete column for variants that should not be searched for.
+    c) for each variant the mutations that should be searched for. Same format as in [Variant definition file](Python/CagableaParser/Data/Variants.tsv.txt) used in the Python script for lineage deconvolution. The same file can be used. Just delete column for variants that should not be searched for. Only the row with the variant names and the rows starting with the row "mutations" are read by the program
 
 - --inbam, -i : the input bam file to parse
 - --outDir, -o : the output directory
 - --minmuts, -m : the minimal number of variant specific mutations that need to be potentially present in one read
-- --fractionmutsrequired, -f : The fraction of the mutations defined with --minmuts that have to be found.
+- --fractionmutsrequired, -f : The fraction of the mutations defined with --minmuts that have to be found in a read.
 - --writeBams, -w (Optional) No parameters: If present, will write a bam file with matching records for each variant. 
 
 
