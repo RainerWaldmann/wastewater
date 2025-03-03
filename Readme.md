@@ -1,12 +1,16 @@
+
 # Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
 
+##Authors
+Pauline Steichen <steichen@ipmc.cnrs.fr>
+Rainer Waldmann <waldmann@ipmc.cnrs.fr>
+
+# Mapping, generation of variation frequency tables (each sample)
 $indir: directory with input fastq files
 
 $outdir: directory for output
 
 $sarsCovRef: SARS-Cov-2 reference genome fasta file
-
-# Mapping, generation of variation frequency tables (each sample)
 
 ## 1. Concatenate fastq files 
 
