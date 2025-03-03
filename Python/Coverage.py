@@ -24,17 +24,19 @@ def create_one_coverage_trace(onesample_data, i):
             checks whether preceding and following data point are equal to current value"""
             x = dat if settings.downsampleFactorDepths is None or settings.downsampleFactorDepths <= 1 else downsample_data(
                 dat, settings.downsampleFactorDepths)
-            after = x.shift(1)[column]
-            before = x.shift(-1)[column]
-            position = x[column]
-            r = [False if
-                 pos == aft == bef
-                 else True for aft, bef, pos in zip(after, before, position)]
-            return x[r]
+            # after = x.shift(1)[column]
+            # before = x.shift(-1)[column]
+            # position = x[column]
+            # r = [False if
+            #      pos == aft == bef
+            #      else True for aft, bef, pos in zip(after, before, position)]
+            # return x[r]
+            return x
         d = __cleanUpCoverageData(onesample_data.depths, 'COUNT')
 
         if settings.plotDepthsLogY:
-            d['COUNT'] = np.where(d['COUNT'] == 0, np.nan, d['COUNT'])
+            d['COUNT'] = np.where(d['COUNT'] == 1, np.nan, d['COUNT'])
+            #d['COUNT'] = np.where(d['COUNT'] == 0, np.nan, d['COUNT'])
         trace = go.Scatter(y=d['COUNT'],
                            x=d['POS'],
                            line=dict(
@@ -49,20 +51,36 @@ def plotCoverage(sample_data):
 
     def __calcCoverage(d):
         """calculates % coverage with >= settings.minDepth reads from depth tsv data"""
-        count = (d.iloc[settings.maxAmplifiedRange[0]:settings.maxAmplifiedRange[1], 2] >= settings.minDepth).sum()
-        countSpike = (d[settings.spikeRange[0]:settings.spikeRange[1]].iloc[:, 2] >= settings.minDepth).sum()
+        count = (d.loc[settings.maxAmplifiedRange[0]:settings.maxAmplifiedRange[1], 'COUNT'] >= settings.minDepth).sum()
+        countSpike = (d.loc[settings.spikeRange[0]:settings.spikeRange[1], 'COUNT'] >= settings.minDepth).sum()
         # calculate relative SE of coverage
         # need depth with values for all positions
+        total_bases = 29870
+        spike_bases = 3822
         all_positions = pandas.DataFrame(
             {'POS': np.arange(settings.maxAmplifiedRange[0], settings.maxAmplifiedRange[1] + 1)}).set_index('POS')
         merged_df = pandas.merge(d, all_positions, left_index=True, right_index=True, how='outer')
         meancov = merged_df['COUNT'].mean()
         sdcov = merged_df['COUNT'].std()
-        return count * 100 / 29870, countSpike * 100 / 3822, 100 * sdcov / meancov
+        totalcov = count * 100 / total_bases
+        spikecov = countSpike * 100 / spike_bases
+        se = 100 * sdcov / meancov  if meancov > 0 else 100
+        return totalcov, spikecov, se
 
+    def __createCoverageDataTSV(sample_data):
+        """creates a tsv file with coverage data for all samples"""
+        df = sample_data[0].depths[['COUNT']].rename(columns={'COUNT': sample_data[0].sample})
+        for sample in sample_data[1:]:
+            # Join the 'TOTAL_DP' column from the sample's depth data to the new DataFrame
+            # Use the sample's name as the column name in the new DataFrame
+            df = df.join(sample.depths[['COUNT']].rename(columns={'COUNT': sample.sample}))
+            df.to_csv(settings.rootDir + "/CoverageAllPositions.tsv", sep='\t',
+                       decimal=locale.localeconv()['decimal_point'])
+            df.loc[::10].to_csv(settings.rootDir + "/CoveragePositionsReduced.tsv", sep='\t',
+                       decimal=locale.localeconv()['decimal_point'])
 
     start_time = time.time()
-
+    __createCoverageDataTSV(sample_data)
     samples = [x.sample for x in sample_data]
     nCols = 3
     nRows = math.ceil(len(sample_data) / nCols)
@@ -113,13 +131,11 @@ def plotCoverage(sample_data):
           coveragedf['SpikeCoverage'].std() / np.sqrt(len(samples)), " N= ",
           len(samples))
 
-    coveragedf.to_csv(settings.rootDir + "/coverageVal.tsv", sep='\t', decimal=locale.localeconv()['decimal_point'])
+    coveragedf.to_csv(settings.rootDir + "/coverageMeans.tsv", sep='\t', decimal=locale.localeconv()['decimal_point'])
 
     if settings.depthPDFfilename is not None:
         pio.write_image(depthplots_fig, settings.rootDir + "/" + settings.depthPDFfilename)
-    # if settings.doPlot:
-    #     depthplots_fig.show()
-    # coveragedf.to_csv(settings.rootDir + "/" + "Coverage.tsv", sep='\t', index=True)
+
     print(f"--------- Sequencing depths plots took {time.time() - start_time} seconds to complete.")
     return depthplots_fig
 
@@ -136,7 +152,7 @@ def plotCoverageViolinPlots(sample_list):
         row = math.ceil((i + 1) / violinsPerRow)
         col = i % violinsPerRow + 1
         sample = "<b>" + sample_list[i].sample + "</b>"
-        violinsPlot_fig.add_trace(go.Violin(y=sample_list[i].depths.iloc[:, 2], meanline_visible=True,
+        violinsPlot_fig.add_trace(go.Violin(y=sample_list[i].depths['COUNT'], meanline_visible=True,
                                             x0= sample,
                                             box_visible=True,
                                             points=False,
@@ -150,10 +166,10 @@ def plotCoverageViolinPlots(sample_list):
                                             ),
                                   row=row, col=col
                                   )
-        masklow = sample_list[i].depths.iloc[:, 1] > settings.spikeRange[0]
-        maskhigh = sample_list[i].depths.iloc[:, 1] < settings.spikeRange[1]
-        spikedepths = sample_list[i].depths.iloc[:, 2]
-        spikedepths = spikedepths[masklow & maskhigh]
+
+        mask = (sample_list[i].depths['POS'] > settings.spikeRange[0]) & (
+                    sample_list[i].depths['POS'] < settings.spikeRange[1])
+        spikedepths = sample_list[i].depths.loc[mask, 'COUNT']
 
         violinsPlot_fig.add_trace(go.Violin(y=spikedepths, meanline_visible=True,
                                             showlegend=i == 0,
@@ -179,14 +195,14 @@ def plotCoverageViolinPlots(sample_list):
                                   )
                                   )
     # fig.update_yaxes(type="log", range=[-2,5]) # log range: 10^0=1, 10^5=100000
-    if settings.doPlot:
-        violinsPlot_fig.show()
     print("DONE plotCoverageViolins")
     return violinsPlot_fig
 
 
-def plotShannon(sample_list):
+def doShannon(sample_list):
     """Plot Shannon Entropy"""
+    if not settings.doShannon:
+        return None
     # def __calcMeanShannon(d):
     #     shannon = (d.loc[:, 'Shannon']).sum() / 29870
     #     shannonSpike = (d[21562:25384].loc[:, 'Shannon']).sum() / 3822
@@ -197,6 +213,13 @@ def plotShannon(sample_list):
         shannonSpike = (d[21562:25384].loc[:, 'Shannon']).sum() / 3822
         return shannon, shannonSpike
 
+    def __cleanUpShannonData(x: pandas.DataFrame, column: str) -> pandas.DataFrame:
+        """removes values from  data that are too close to previous and next value
+        --> no need to have lots of identical points in plot """
+        return x[[False if zero != zero  or math.fabs(zero - plusone) < 0.03 and math.fabs(zero - minusone) < 0.03 else True
+             for zero,plusone,minusone in zip(x[column],x.shift(1)[column],x.shift(-1)[column])]]
+
+
     data = {}
     for s in sample_list:
         shannon, shannonSpike = __calcMeanShannon(s.depths)
@@ -205,57 +228,59 @@ def plotShannon(sample_list):
     # Create DataFrame from the dictionary
     meanShannons = pandas.DataFrame(data).transpose()
     meanShannons.columns = ['MeanShannon', 'MeanSpikeShannon']  # Rename columns
-    def __cleanUpShannonData(x: pandas.DataFrame, column: str) -> pandas.DataFrame:
-        """removes values from  data that are too close to previous and next value
-        --> no need to have lots of identical points in plot """
-        return x[[True if zero != zero  or math.fabs(zero - plusone) > 0.02 or math.fabs(zero - minusone) > 0.02 else False
-             for zero,plusone,minusone in zip(x[column],x.shift(1)[column],x.shift(-1)[column])]]
+    if settings.useDateAxis:
+        dates = [x.date for x in sample_list]
+        meanShannons['Date'] = dates
+    meanShannons.to_csv(settings.rootDir + "/Shannon.tsv", sep='\t', decimal=locale.localeconv()['decimal_point'])
+    if settings.plotShannon:
+        samples = [x.sample for x in sample_list] # truncate names at 20 chars ???
+        nCols = 3
+        nRows = math.ceil(len(sample_list) / nCols)
+        # "subplot_titles=samples" in line below: titles are actually defined later. However If I put nothing here, shannonplots_fig['layout']['annotations'][i].update below throws an exception.
+        shannonplots_fig = make_subplots(rows=nRows, cols=nCols, start_cell="top-left", subplot_titles=samples)
+        for i, sample in enumerate(sample_list):
+            row = math.ceil((i + 1) / nCols)
+            # row = int((i)//nCols + 1)
+            col = (i % nCols) + 1
+            #print("Shannon Length df before filter:" + str(len(sample.depths)))
+            df = __cleanUpShannonData(sample.depths, 'Shannon')
+            #print("Shannon Length df after filter:" + str(len(df)))
+            if settings.shannonPlotSpikeOnly:
+                df =df[settings.spikeRange[0]:settings.spikeRange[1]]
+            trace = go.Scatter(y=df['Shannon'],
+                               x=df['POS'],
+                               line=dict(
+                                   color='Navy',  # 'rgb(160, 10, 10)',
+                                   width=1.5
+                               ),
+                               hovertemplate="Pos: %{x}<br>Entropy: %{y}"
+                               )
 
-    samples = [x.sample for x in sample_list] # truncate names at 20 chars ???
-    nCols = 3
-    nRows = math.ceil(len(sample_list) / nCols)
-    # "subplot_titles=samples" in line below: titles are actually defined later. However If I put nothing here, shannonplots_fig['layout']['annotations'][i].update below throws an exception. 
-    shannonplots_fig = make_subplots(rows=nRows, cols=nCols, start_cell="top-left", subplot_titles=samples)
-    shannon_list = []
-    spike_shannon_list = []
-    for i, sample in enumerate(sample_list):
-        row = math.ceil((i + 1) / nCols)
-        # row = int((i)//nCols + 1)
-        col = (i % nCols) + 1
-        df = __cleanUpShannonData(sample.depths, 'Shannon')
-        #df = sample_list[i].depths
-        trace = go.Scatter(y=df['Shannon'],
-                           x=df['POS'],
-                           line=dict(
-                               color='Navy',  # 'rgb(160, 10, 10)',
-                               width=1.5
-                           ),
-                           hovertemplate="Pos: %{x}<br>Entropy: %{y}"
-                           )
-
-        shannonplots_fig.add_vrect(
-            x0=settings.spikeRange[0], x1=settings.spikeRange[1],
-            fillcolor="LightYellow", opacity=0.5,
-            layer="below", line_width=0
-        )
-        shannonplots_fig.add_trace(trace, row=row, col=col)
-        #shannon = __calcMeanShannon(sample.depths)
-        #shannon_list.append(shannon[0])
-        #spike_shannon_list.append(shannon[1])
-        shannonplots_fig['layout']['annotations'][i].update(text= "<b>" + (samples[i] + "</b>" + "<br>" +
-                                                                  'Mean shannon:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanShannon']) + "<br>" +
-                                                                           'Mean spike shannon:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanSpikeShannon']) + "<br>" +
-                                                                           'Mean shannon diff spike/tot:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanSpikeShannon'] - meanShannons.at[sample.sample, 'MeanShannon'])
-                                                                           ))
-    shannonplots_fig.update_layout(width=800 * nCols,
-                                   height=600 * nRows, title_text="Shannon Entropy",
-                                   yaxis=dict(
-                                     showgrid=True),
-                                   title="",
-                                   hovermode='closest',
-                                   showlegend=False)
-    # shannonplots_fig.update_yaxes(type="log")
-    return shannonplots_fig
+            shannonplots_fig.add_vrect(
+                x0=settings.spikeRange[0], x1=settings.spikeRange[1],
+                fillcolor="LightYellow", opacity=0.5,
+                layer="below", line_width=0
+            )
+            shannonplots_fig.add_trace(trace, row=row, col=col)
+            #shannon = __calcMeanShannon(sample.depths)
+            #shannon_list.append(shannon[0])
+            #spike_shannon_list.append(shannon[1])
+            shannonplots_fig['layout']['annotations'][i].update(text= "<b>" + (samples[i] + "</b>" + "<br>" +
+                                                                      'Mean shannon:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanShannon']) + "<br>" +
+                                                                               'Mean spike shannon:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanSpikeShannon']) + "<br>" +
+                                                                               'Mean shannon diff spike/tot:' + '{:.5f}'.format(meanShannons.at[sample.sample, 'MeanSpikeShannon'] - meanShannons.at[sample.sample, 'MeanShannon'])
+                                                                               ))
+        shannonplots_fig.update_layout(width=800 * nCols,
+                                       height=600 * nRows, title_text="Shannon Entropy",
+                                       yaxis=dict(
+                                         showgrid=True),
+                                       title="",
+                                       hovermode='closest',
+                                       showlegend=False)
+        # shannonplots_fig.update_yaxes(type="log")
+        return shannonplots_fig
+    else:
+        return None
 
 
 def plotShannonViolins(sample_list):
@@ -314,13 +339,13 @@ def plotShannonViolins(sample_list):
                                   )
     violinsPlot_fig.update_yaxes(type="log")
     violinsPlot_fig.update_yaxes(range=[-3, -1])
-    if settings.doPlot:
-        violinsPlot_fig.show()
     return violinsPlot_fig
 
 
 def getShannonBoxPlots(sample_list):
     """Generate Shannon Entropy Box Plots"""
+    if not settings.plotShannon:
+        return None
     boxPlotsPerRow = 5
     nRows = math.ceil(len(sample_list) / boxPlotsPerRow)
     boxPlot_fig = make_subplots(rows=nRows, cols=boxPlotsPerRow, start_cell="top-left",

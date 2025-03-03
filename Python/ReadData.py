@@ -1,3 +1,4 @@
+import Globals
 import pandas
 import os
 import numpy as np
@@ -13,6 +14,7 @@ import gc
 from joblib import Parallel, delayed
 import time
 import dateutil.parser as dparser
+import sys
 
 
 def readData():
@@ -20,16 +22,29 @@ def readData():
 
     def readOneDirectory(f):
         fileList = [p.as_posix() for p in f.iterdir() if p.is_file()]
-        print(str(f))
+        print("Parsing: " + str(f))
 
         if settings.ivarExtension in str(fileList) and settings.depthExtension in str(fileList):
 
-            depth_data = pd.read_csv(next(name for name in fileList if settings.depthExtension in name), sep='\t', names=["REF", "POS", "COUNT"],
-                                     dtype={"REF": "string", "POS": "int", "COUNT": "int"})
-            depth_data.index = depth_data.loc[:, 'POS']
+            depth_data = pd.read_csv(next(name for name in fileList if settings.depthExtension in name), sep='\t',
+                                     names=["REF", "POS", "COUNT"],
+                                     dtype={"POS": "int", "COUNT": "int"}, usecols=["POS", "COUNT"])
+            #fill in 0 depth for lacking positions 4 steps, TODO find easier way
+            all_positions = pd.DataFrame({
+                'POS': range(1, settings.sarsCov2length),
+                'COUNT': 0
+            })
+
+            # Step 2: Set 'POS' as the index in both DataFrames
+            depth_data.index = depth_data['POS']
+            all_positions.index = all_positions['POS']
+
+            # Step 3: Combine the DataFrames
+            depth_data = depth_data.combine_first(all_positions)
+
             iv_data = pd.read_table([i for i in fileList if settings.ivarExtension in i][0],
                                     dtype={"REGION": "string", "POS": "int32", "REF": 'category',
-                                           "ALT": 'category', "REF_DP": "int32", "REF_RV": "int32",
+                                           "ALT": 'string', "REF_DP": "int32", "REF_RV": "int32",
                                            "REF_QUAL": 'float32', "ALT_DP": "int32", "ALT_RV": "int32",
                                            "ALT_QUAL": 'float32', "ALT_FREQ": "float32", "TOTAL_DP": "int32",
                                            "PVAL": "float16", "PASS": "bool",
@@ -41,6 +56,8 @@ def readData():
             iv_data = iv_data.drop(
                 ['REGION', "PANGOSTR", "LINEAGES", "GFF_FEATURE", "REF_CODON", "ALT_CODON", "REF_AA", "ALT_AA", "PASS",
                  "PVAL"], errors='ignore', axis=1)
+
+
             # in Anderson lab ivar some lines are duplicated when GTF is supplied and CDS in GTF overlap
             dupFilter = iv_data.duplicated(["POS", "REF", "ALT"])
             iv_data = iv_data[~dupFilter]
@@ -48,15 +65,19 @@ def readData():
             # DO SOME FILTERING
             #remove rows with bad quality or bad forward reverse balance or ALT qual
             conditionALT_QUAL = settings.conditionALT_QUAL(iv_data)
-            conditionBal = pd.Series([False]*len(iv_data)) if settings.do_filter_FWD_REV_balance else settings.condition_FWD_REV_balance(iv_data)
+            conditionBal = pd.Series([False]*len(iv_data)) if not settings.do_filter_FWD_REV_balance else settings.condition_FWD_REV_balance(iv_data)
             condition4 = settings.andersonLabIvarUsed or ~iv_data['ALT'].str.contains('del')  # deletions are always forward in ivar -> don't filter rows with deletions
             conditionQualAndBalance = (conditionALT_QUAL | conditionBal) & condition4
             #for now filter deletions that are not multiples of three. They are typically artefacts
-            conditionDelNotMultipleOfThree = ~iv_data['ALT'].str.match(r'(^[+-](\w{3})*$|^[^+-])') # indels that are not multiples of 3
+            conditionDelNotMultipleOfThree =  ~iv_data['ALT'].str.match(r'(^[+-](\w{3})*$|^[^+-])') if settings.filterIndelsNotMultipleOfThree else False # indels that are not multiples of 3
+            conditionFilterInsertions = iv_data['ALT'].str.startswith('+') if settings.filterInsertions else False# remove insertions # TODO treat insertions current xorkaround remove ALT lines that contain '+'!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             #filter low depth rows . Use depths from the depth dataframe since depths from the Anderson lab Ivar are inconsistent
             depthhighenough_pos = depth_data[depth_data["COUNT"] >= settings.minDepth].index
             conditionSeqDepth = ~iv_data['POS'].isin(depthhighenough_pos)
-            iv_data = iv_data.drop(iv_data[conditionQualAndBalance | conditionDelNotMultipleOfThree | conditionSeqDepth].index)
+            iv_data = iv_data.drop(iv_data[conditionQualAndBalance |
+                                           conditionDelNotMultipleOfThree |
+                                           conditionSeqDepth |
+                                           conditionFilterInsertions].index)
             print(" ---------- Read data for SAMPLE: ", os.path.basename(f.as_posix()) + "----------\n" +
                   "Frequency table number of rows: "+ str(initial_iv_data_len) + "\n" +
                   "Filtered low ALT_QUAL: " + conditionALT_QUAL.sum().astype(str) + "\n" +
@@ -70,19 +91,29 @@ def readData():
             iv_data.ALT = iv_data.ALT.apply(lambda z: 'del' + str(len(z[1:])) if z[0] == '-'  else z).astype('category')
 
               # add column with shannon entropy to depth dataframe
-            if settings.plotShannon:
+            if settings.doShannon:
                 dfForShannon = __addWTfrequenciesToDataframe(iv_data) # !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                 depth_data = __computeshannonfromivar(dfForShannon, depth_data)
 
             # read amplicon data
-            amplicon_data = pd.read_table(next(name for name in fileList if 'TrimStats.txt' in name))
-            trimstats = Data.AmpliconData(amplicon_data)
+            file_name = next((name for name in fileList if 'TrimStats.' in name), None)
+            if file_name is not None:
+                amplicon_data = pd.read_table(file_name)
+                trimstats = Data.AmpliconData(amplicon_data)
+                # get Artic pool 1 count for pepper ref counts
+                artic_data = next((item for item in trimstats.data.items() if 'artic' in item[0].lower()), None)
+            else:
+                trimstats = None
+                artic_data = None
 
-            # get Artic pool 1 count for pepper ref counts
-            artic_data = next((item for item in trimstats.data.items() if 'artic' in item[0].lower()))
-            articPool1Count = artic_data[1].pool1Count
+            if artic_data is not None:
+                articPool1Count = artic_data[1].pool1Count
+            else:
+                settings.plotPepper = False
+                articPool1Count = None
+                print("\033[91m ++++++++   settings.plotPepper set to False because no artic pool 1 count found in: " + f.name +"\033[0m")
 
-            spikeInTrimStatsFileName = [name for name in fileList if 'TrimStats.SpikeIn.txt' in name]
+            spikeInTrimStatsFileName = [name for name in fileList if 'TrimStats.SpikeIn.' in name]
             if len(spikeInTrimStatsFileName) != 0: # spikeIn Trimstat file exists
                 t = pd.read_table(spikeInTrimStatsFileName[0])
                 trimstatsSpikeIn = Data.AmpliconData(t)
@@ -97,9 +128,10 @@ def readData():
                     with open(pepper_file_path) as pep:
                         ppmov = int(pep.readline()) #file just contains a number, the ppmov read count
                 else:
-                    settings.plotPepper = False
+                    e = "settings.plotPepper set to False because no pepper data found in: " + f.name
+                    Globals.warningList.put(e)
+                    print("\033[91m+++++++++++++++++++++ " + e  + "+++++++\033[0m")
             #search whether date in format YYYY-MM-DD is in filename
-
 
             match = re.search(r'\d{4}-\d{2}-\d{2}', f.name)
 
@@ -107,7 +139,9 @@ def readData():
                 date = dparser.parse(match.group(), fuzzy=True)
             else:
                 if settings.useDateAxis:
-                    print("\033[91mSample: " + f.name + " DATE in format YYYY-MM-DD not found\033[0m")  # print error message in red
+                    e = "Sample: " + f.name + " DATE in format YYYY-MM-DD not found, settings.useDateAxis was true, settings.useDateAxis set to False"
+                    Globals.warningList.put(e)
+                    print("\033[91m" + e + "\033[0m")  # print error message in red
                     settings.useDateAxis = False
                 date = None
 
@@ -119,6 +153,7 @@ def readData():
     sample_list = Parallel(n_jobs=settings.num_cores)(
             delayed(readOneDirectory)(f) for f in directories)
     sample_list = [item for item in sample_list if item is not None] # filter out None values which are folders that did not have ivar and depth files
+
     if settings.showprocesstime:
         print(
             f"-----------------Read files finished took {time.time() - start_time} seconds to complete.-------------------------------")
@@ -128,6 +163,13 @@ def readData():
         for x in range(len(sample_list)):
             if '_' in sample_list[x].sample[0:4]:
                 sample_list[x].sample = sample_list[x].sample.split("_", 1)[1]
+
+    settings.useDateAxis = settings.useDateAxis and not any(
+        pd.isna(sample.date) for sample in sample_list)  # all samples contain valid date
+
+    if settings.useDateAxis:
+        for s in sample_list:
+            s.sample = s.date.date().isoformat()
     return sample_list
 
 
@@ -143,25 +185,47 @@ def __mergeCloseDeletions (data:pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def mergeAndFilterData(sample_list):
+def mergeAndFilterDataTEST(sample_list):
     """merge ivar dataframes"""
-    mer = sample_list[0].ivar
     columns_tomerge = ["POS", "REF", "ALT"]
-    if len(sample_list) == 1: # if just one sample merge won't add sample name to columns -> need to rename columns
-        othercolumns = ['REF_DP', 'REF_RV', 'REF_QUAL', 'ALT_DP', 'ALT_RV', 'ALT_QUAL', 'ALT_FREQ', 'TOTAL_DP']
-        for col in othercolumns:
-            if col in mer.columns:
-                mer = mer.rename(columns={col: col + '_' + sample_list[0].sample})
-    
+
+    othercolumns = ['REF_DP', 'REF_RV', 'REF_QUAL', 'ALT_DP', 'ALT_RV', 'ALT_QUAL', 'ALT_FREQ', 'TOTAL_DP']
+    merged_df_list = [sample_list[0].ivar.rename(columns={col: f"{col}_{sample_list[0].sample}" for col in othercolumns if col in sample_list[0].ivar.columns})]
+
+    if len(sample_list) == 1:
+        return merged_df_list[0]
+
+    # Prepare the suffixes and list for merging
+    suffixes = [f"_{sample.sample}" for sample in sample_list]
+
     for i in range(1, len(sample_list)):
-        print("Merging sample ", i)
-        bc1 = "_" + sample_list[i - 1].sample
-        bc2 = ("_" + sample_list[i].sample) if i == len(sample_list) - 1 else None
-        mer = mer.merge(sample_list[i].ivar, on=columns_tomerge, how='outer'
-                        , suffixes=(bc1, bc2))
-        # the following two lines free RAM used by the ivar df
+        print("Merging sample ", i + 1)
+
+        suffix = suffixes[i]
+        temp_df = sample_list[i].ivar
+
+        # Convert temp_df to efficient data types
+        temp_df = temp_df.astype({
+            "POS": "int32", "REF": "category", "ALT": "category",
+            "REF_DP": "int32", "REF_RV": "int32", "REF_QUAL": "float32",
+            "ALT_DP": "int32", "ALT_RV": "int32", "ALT_QUAL": "float32",
+            "ALT_FREQ": "float32", "TOTAL_DP": "int32"
+        })
+
+        # Free RAM used by the ivar df
         sample_list[i].ivar = None
-        gc.collect()
+
+        # Add suffix to all columns except those in columns_tomerge
+        temp_df = temp_df.rename(columns={col: col + suffix for col in temp_df.columns if col not in columns_tomerge})
+
+        merged_df_list.append(temp_df)
+
+    # Perform the merge
+    mer = pd.concat(merged_df_list, axis=0, join='outer', ignore_index=True).groupby(columns_tomerge,
+                                                                                     as_index=False).first()
+    #filter columns with too low freqs
+    alt_freq_cols = [col for col in mer.columns if col.startswith('ALT_FREQ')]
+    mer = mer[(mer[alt_freq_cols] >= settings.minFreq).any(axis=1)]
     # Reduce RAM usage - convert columns to int32
     c = mer.filter(regex='^(ALT_DP_|REF_DP_|REF_REV_|TOTAL_DP)').columns
     #print("**********MEM",mer.dtypes,mer.memory_usage())
@@ -172,6 +236,47 @@ def mergeAndFilterData(sample_list):
     # Sort by pos
     mer.sort_values(by=['POS'], inplace=True)
     mer.reset_index(drop=True, inplace=True)
+    mer = mer.copy() # copy to free memory
+    if mer.empty:
+        print("Error: No mutation passed filter (min reads, qual ....). ---- EXITING")
+        sys.exit(1)
+    print("DONE mergeData")
+    return __filterMergedData(mer, sample_list)
+
+
+def mergeAndFilterData(sample_list):
+    """merge ivar dataframes"""
+    mer = sample_list[0].ivar
+    columns_tomerge = ["POS", "REF", "ALT"]
+    if len(sample_list) == 1:  # if just one sample merge won't add sample name to columns -> need to rename columns
+        othercolumns = ['REF_DP', 'REF_RV', 'REF_QUAL', 'ALT_DP', 'ALT_RV', 'ALT_QUAL', 'ALT_FREQ', 'TOTAL_DP']
+        for col in othercolumns:
+            if col in mer.columns:
+                mer = mer.rename(columns={col: col + '_' + sample_list[0].sample})
+
+    for i in range(1, len(sample_list)):
+        print("Merging sample ", i + 1)
+        bc1 = "_" + sample_list[i - 1].sample
+        bc2 = ("_" + sample_list[i].sample) if i == len(sample_list) - 1 else None
+        mer = mer.merge(sample_list[i].ivar, on=columns_tomerge, how='outer'
+                        , suffixes=(bc1, bc2))
+        # the following two lines free RAM used by the ivar df
+        sample_list[i].ivar = None
+        gc.collect()
+    # filter columns with too low freqs
+    alt_freq_cols = [col for col in mer.columns if col.startswith('ALT_FREQ')]
+    mer = mer[(mer[alt_freq_cols] >= settings.minFreq).any(axis=1)]
+    # Reduce RAM usage - convert columns to int32
+    c = mer.filter(regex='^(ALT_DP_|REF_DP_|REF_REV_|TOTAL_DP)').columns
+    # print("**********MEM",mer.dtypes,mer.memory_usage())
+    mer[c] = mer[c].astype(pd.Int32Dtype())
+    # mer[c] = mer[c].apply(pd.to_numeric, errors='coerce').astype(pd.Int32Dtype()) # does not change still remains float64
+    mer["ALT"] = mer["ALT"].astype("category")  # alt became object after merge -> reset to category to save RAM
+    # print("**********MEM",mer.dtypes,mer.memory_usage())
+    # Sort by pos
+    mer.sort_values(by=['POS'], inplace=True)
+    mer.reset_index(drop=True, inplace=True)
+
     print("DONE mergeData")
     return __filterMergedData(mer, sample_list)
 
@@ -240,6 +345,8 @@ def getFrequencyColumnsOnly(df : pandas.DataFrame, sample_list : list, range : t
             return f"{pos}{alt}{mi.MutInfoDeletion.getMutInfoFromPosMut(pos, alt).getAAmutstringForDFindex()}"
         elif len(alt) == 1:# substitution
             return f"{ref}{pos}{alt}{mi.MutInfoSubst.getMutInfoFromPosMut(pos, alt).getAAmutstringForDFindex()}"
+        elif '+' in alt: # insertion
+            return f"{pos}ins{alt[1:]}"
         else:
             return ""
 

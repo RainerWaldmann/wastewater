@@ -9,6 +9,7 @@ import Data
 import variants.MutInfo as mi
 from plotly.subplots import make_subplots
 import dash_bio
+from copy import deepcopy
 
 
 def __getHeatMapHoverText(df : pd.DataFrame, sample_list : list[Data.OneBCdata]) -> pd.DataFrame:
@@ -16,11 +17,11 @@ def __getHeatMapHoverText(df : pd.DataFrame, sample_list : list[Data.OneBCdata])
     def __format_intvalue(value):
         return str(round(value)) if pd.notna(value) else "NA"
 
-    def __generateOneHoverLine(x : pd.Series, sample: Data.OneBCdata) -> pd.Series:
+    def __generateOneHoverLine(x : pd.Series, sample: Data.OneBCdata) ->str:
         """Does job for one line"""
         ret = f"<b>Sample: {sample.sample}</b><br>"
         ret += f"<b>Mutation: </b>{x['REF']}{x['POS']}{x['ALT']}"
-        if (len(x["ALT"]) == 1):
+        if (len(x["ALT"]) == 1): # is substitution
             ret += mi.MutInfoSubst.getMutInfoFromPosMut(x["POS"], x["ALT"]).getAAmutstringForDFindex()
         ret += "<br>"
         ret += f"<b>Frequency: </b>{round(x['ALT_FREQ_'+ sample.sample],3) if pd.notna(x['ALT_FREQ_'+ sample.sample]) else 'NA'}<br>"
@@ -29,17 +30,30 @@ def __getHeatMapHoverText(df : pd.DataFrame, sample_list : list[Data.OneBCdata])
         ret += f")/({__format_intvalue(x['ALT_DP_' + sample.sample] - x['ALT_RV_' + sample.sample])},{__format_intvalue(x['ALT_RV_' + sample.sample])})"
         return ret
 
-    dfp_hover = pd.DataFrame()
-    for sample in sample_list:
-        dfp_hover[sample.sample] = df.apply(lambda x: __generateOneHoverLine(x, sample), axis=1)
+    series_list = [
+        df.apply(lambda x: __generateOneHoverLine(x, sample), axis=1).rename(sample.sample)
+        for sample in sample_list
+    ]
+    dfp_hover = pd.concat(series_list, axis=1)
+
+#    dfp_hover = pd.DataFrame()
+#    for sample in sample_list:
+#        dfp_hover[sample.sample] = df.apply(lambda x: __generateOneHoverLine(x, sample), axis=1)
     return dfp_hover
 
 
-def plotHeatMap( mergedData: pd.DataFrame, sample_list: list[Data.OneBCdata]) -> go.Figure:
+def plotHeatMap(mergedData: pd.DataFrame, sample_list: list[Data.OneBCdata]) -> go.Figure:
     """gets heatmap figure""" 
      # get dataframes with just frequencies
-    dfpForHeatMaps = ReadData.getFrequencyColumnsOnly(mergedData, sample_list, None)   
-    dfp_hover = __getHeatMapHoverText(mergedData, sample_list)
+    dfpForHeatMaps = ReadData.getFrequencyColumnsOnly(mergedData, sample_list, None)
+
+    if settings.heatmapDisplayOnlyVariants is not None:
+        # Create a regex pattern from the list
+        pattern = '|'.join(settings.heatmapDisplayOnlyVariants)
+        # Filter the DataFrame
+        dfpForHeatMaps = dfpForHeatMaps[dfpForHeatMaps.index.str.contains(pattern)]
+
+    dfp_hover = __getHeatMapHoverText(mergedData, sample_list) if settings.hoverinfo_Onheatmaps else None
     newIndexlist = list()
     for ind in dfpForHeatMaps.index:
         for voc in vg.variantdict:
@@ -49,50 +63,39 @@ def plotHeatMap( mergedData: pd.DataFrame, sample_list: list[Data.OneBCdata]) ->
         newIndexlist.append(ind)
 
     dfA = dfpForHeatMaps.set_index(pd.Index(newIndexlist))  # set new index
-
-    # index = [s.split(",")[0] for s in index] ,\w+
-    # print([s.split(",")[0] for s in dfp.index])
+    #reverse to have muts in ascending order
+    dfA = dfA.iloc[::-1]
+    if dfp_hover is not None:
+        dfp_hover = dfp_hover.iloc[::-1]
     hoverinfo = '<b>%{customdata}</b>' if settings.hoverinfo_Onheatmaps else None
-    hovermode = 'closest' if settings.hoverinfo_Onheatmaps else False #possible hovermode ['x', 'y', 'closest', False, 'x unified', 'y unified']
+    hovermode = 'closest' if settings.hoverinfo_Onheatmaps else False
+    heatmap_height = len(dfA) * 15 if len(dfA) > 10 else 300
+    heatmap_width = dfA.shape[1] * 40 + 400
     heatmap_fig = go.Figure(data=go.Heatmap(
         z=dfA,
         y=dfA.index,
-        x=dfA.columns, colorscale=[(0, "blue"), (0.2, "red"), (1, "yellow")],
+        x=dfA.columns, 
+        colorscale=[(0, "blue"), (0.5, "red"), (1, "yellow")],
         xgap=2,
         ygap=2,
         colorbar=dict(title='Mut Freq'),
         customdata=dfp_hover,
-        #hoverinfo='skip',# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         hovertemplate= hoverinfo
-        #            '<i>Site</i>: %{x}'+
-        #            '<br>Mutation: %{y}'+
-        #            '<br><b>Frequency= </b>: %{z}' +
-
-
     ),
-        layout=go.Layout(plot_bgcolor='rgb(100, 100,100)', height=len(dfA) * 20, width=dfA.shape[1] * 50 + 400,
-                hovermode=hovermode
-                         # title_text="Plotly heatmap"
+        layout=go.Layout(plot_bgcolor='rgb(100, 100,100)', 
+                           height=  heatmap_height,
+                           width=heatmap_width,
+                           hovermode=hovermode
                          )
     )
-    # custom hover:  https://plotly.com/python/hover-text-and-formatting/
-    # custom hover: https://stackoverflow.com/questions/45569092/plotly-python-heatmap-change-hovertext-x-y-z
-    # custom hover: https://community.plotly.com/t/heatmap-changing-x-y-and-z-label-on-tooltip/23588/4
-    #    hovertemplate =
-    #    '<i>Price</i>: x'+
-    #    '<br><b>Frequency= </b>: y<br>',
-    # + '<b>%{text}</b>',
-    # text = ['Custom text {}'.format(i + 1) for i in range(5)],
 
+    if settings.heatmap_pdf:
+        maxpdfheight = 10000
+        if heatmap_height > maxpdfheight:
+            resized_heatmap_fig = deepcopy(heatmap_fig)
+            resized_heatmap_fig.update_layout(height=maxpdfheight)
+        plotly_io.write_image(resized_heatmap_fig if heatmap_height > maxpdfheight else heatmap_fig, settings.rootDir + "/" + settings.heatmap_pdf, format='pdf')
 
-    # ,
-    # layout=go.Layout(plot_bgcolor=’#777777’)))
-    #  layout=plot_bgcolor='rgb(230, 230,230)')))
-    if settings.doPlot:
-        heatmap_fig.show()
-
-    # heatmap_fig.write_html(rootDir.as_posix() + "/heatmap.html")
-    #plotly_io.write_image(heatmap_fig, settings.rootDir + "/heatmap.pdf", format='pdf')
     return heatmap_fig
 
 
@@ -101,27 +104,11 @@ def plotHeatMapVariantsOnly(mergedData: pd.DataFrame, sample_list: list[Data.One
     index = [re.sub(r'[N]{7,}', "N7+", s) for s in dfpForHeatMaps.index]  # replace >= 7N by N7+
     index = [re.sub(r',.+', "", s) for s in index]  # remove everything after the ","
     df = dfpForHeatMaps.set_index(pd.Index(index))
-
-    # newIndexlist = list()
-    # for ind in dfA.index:
-    #     for voc in VariantDefinitions.VOCsAllDefiningMuts:
-    #         vocMutList = VariantDefinitions.VOCsAllDefiningMuts[voc]
-    #         if any(sub in ind for sub in vocMutList):
-    #             ind = voc + ":" + ind
-    #     newIndexlist.append(ind)
-
-    #dfA.set_index(pd.Index(newIndexlist), inplace=True)  # set new index
-
-    #https://stackoverflow.com/questions/67700318/check-if-series-contains-any-element-from-a-list
-    #dict of dataframes for VOCs
     vocDFs = dict()
     totRows = 0
     nVariant=0
     for voc in vg.variantdict:
         filt = [any([i in x for i in vg.variantdict[voc].getNucAcidMutList()]) for x in df.index]
-#    for voc in VariantDefinitions.VOCsLineageDef:
-        #filt = df.apply(lambda x: any([i in x.index for i in VariantDefinitions.VOCsAllDefiningMuts[voc]]),axis = 1)
- #       filt = [any([i in x for i in  VariantDefinitions.VOCsLineageDef[voc]]) for x in df.index]
         d = df[filt]
         if len(d) != 0 :
             vocDFs[voc] = d
@@ -170,57 +157,66 @@ def plotHeatMapVariantsOnly(mergedData: pd.DataFrame, sample_list: list[Data.One
     heatmap_fig.update_coloraxes(showscale=False)
     #heatmap_fig.show()
 
-    # heatmap_fig.write_html(rootDir.as_posix() + "/heatmap.html")
-    plotly_io.write_image(heatmap_fig, settings.rootDir + "/heatmapVariants.pdf", format='pdf')
+    if settings.heatmap_variantsonly_pdf:
+        plotly_io.write_image(heatmap_fig, settings.rootDir + "/" + settings.heatmap_variantsonly_pdf, format='pdf')
     return heatmap_fig
 
 
-transpose = True
-def clusterMap(mergedData:pd.DataFrame, sample_list: list[Data.OneBCdata]):
+
+def clusterMap(mergedData: pd.DataFrame, sample_list: list[Data.OneBCdata]):
+    transpose = False
+    #clusterX = False
     dfpForHeatMap = ReadData.getFrequencyColumnsOnly(mergedData, sample_list, None)
-    dfz = dfpForHeatMap.transpose()  if  transpose else dfpForHeatMap
+
+    if settings.heatmapDisplayOnlyVariants is not None:
+        # Create a regex pattern from the list
+        pattern = '|'.join(settings.heatmapDisplayOnlyVariants)
+        # Filter the DataFrame
+        dfpForHeatMap = dfpForHeatMap[dfpForHeatMap.index.str.contains(pattern)]
+
+    dfz = dfpForHeatMap.transpose() if transpose else dfpForHeatMap
     columns = list(dfz.columns)
     rows = list(dfz.index)
     hovermode = 'closest' if settings.hoverinfo_Onheatmaps else False  # possible hovermode ['x', 'y', 'closest', False, 'x unified', 'y unified']
+
+    # Define color threshold based on clustering requirements
+    #color_threshold = {'row': 0.3, 'col': 0.3 if clusterX else 1.0}
+
     cluster_fig = dash_bio.Clustergram(
-        center_values= False,
+        center_values=False,
         data=dfz.fillna(-0.0001).loc[rows].values,
         row_labels=rows,
         column_labels=columns,
-        height= dfz.shape[0]*40 +350 if transpose else dfpForHeatMap.shape[0]*20 ,
-        width=dfz.shape[1]*20 if transpose else dfpForHeatMap.shape[1]*100 + 150,
-        color_threshold={
-            'row': 0.3,
-            'col': 0.3
-        },
-       color_list={
-    #        'row': ['#636EFA', '#00CC96', '#19D3F3'],
-    #        'col': ['#AB63FA', '#EF553B'],
+        height=dfz.shape[0] * 40 + 350 if transpose else dfpForHeatMap.shape[0] * 20,
+        width=dfz.shape[1] * 20 if transpose else dfpForHeatMap.shape[1] * 100 + 150,
+        #color_threshold=color_threshold,
+        color_list={
+            # 'row': ['#636EFA', '#00CC96', '#19D3F3'],
+            # 'col': ['#AB63FA', '#EF553B'],
             'bg': 'white'
         },
-        color_map= [[0.0, 'grey'],[0.00011, 'rgb(0,0,100)'], [0.3, 'rgb(255,0,0)'], [1.0, 'rgb(255,255,0)']],
-    #    color_map= [
-    #        [0.0, "blue"],
-    #        [1.0, "red"]
-    #    ],
-        #color_map= [(0.0, "black"),(0.05, "blue"), (0.2, "red"), (1, "yellow")],
-
+        color_map=[[0.0, 'grey'], [0.00011, 'rgb(0,0,100)'], [0.3, 'rgb(255,0,0)'], [1.0, 'rgb(255,255,0)']],
+        # color_map= [
+        # [0.0, "blue"],
+        # [1.0, "red"]
+        # ],
+        # color_map= [(0.0, "black"),(0.05, "blue"), (0.2, "red"), (1, "yellow")],
         line_width=1.5,
         display_ratio=[0.1, 0.4] if transpose else [0.4, 0.1],
-        paper_bg_color = 'rgb(240, 240,240)'
+        paper_bg_color='rgb(240, 240,240)'
     )
+
     cluster_fig.update_traces(colorbar_orientation='h', selector=dict(type='heatmap'),
-                              xgap = 2,
-                              ygap = 2,
-                     #customdata= hoverDictionary,
-                     #hovertemplate ='<i>Site</i>: %{customdata[%{z}]}' + '<br><b>Frequency= </b>: %{z}'
-                     hovertemplate = '<b>Site= </b>: %{y}<br>' +'<i>Mutation</i>: %{x}' +  '<br><b>Frequency= </b>: %{z}'
-                     )
-    cluster_fig.update_layout(hovermode = hovermode)
-    #cluster_fig.update_layout(plot_bgcolor='rgb(100, 100,100)')
-    if settings.doPlot:
-        cluster_fig.show()
-    #cluster_fig.write_html(rootDir.as_posix() + "/heatmap2.html")
-    #cluster_fig.write_image(rootDir.as_posix() + "/heatmap2.pdf")
-    #plotly_io.write_image(cluster_fig, settings.rootDir + "/clustermap.pdf", format='pdf')
+                              xgap=2,
+                              ygap=2,
+                              # customdata= hoverDictionary,
+                              # hovertemplate ='<i>Site</i>: %{customdata[%{z}]}' + '<br><b>Frequency= </b>: %{z}'
+                              hovertemplate='<b>Site= </b>: %{y}<br>' + '<i>Mutation</i>: %{x}' + '<br><b>Frequency= </b>: %{z}'
+                              )
+    cluster_fig.update_layout(hovermode=hovermode)
+
+    img_bytes = plotly_io.to_image(cluster_fig, format="pdf")
+    with open(settings.rootDir + "/clustermap.pdf", "wb") as f:
+        f.write(img_bytes)
+
     return cluster_fig

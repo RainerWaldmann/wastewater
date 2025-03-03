@@ -97,8 +97,8 @@ def __calcVariantFrequenciesOneVocThread(voc: str, dfp : pd.DataFrame, samples :
             mn = l.mean(skipna=True)
             qA, qB = np.percentile(l, [75, 25])
             intr_qr = qA - qB
-            max = qA + (0.3 * intr_qr)
-            min = qB - (0.3 * intr_qr)
+            max = qA + (settings.interq_range_outliers * intr_qr)
+            min = qB - (settings.interq_range_outliers * intr_qr)
             # protect from filtering values very close to mean if intr_qr is very small
             max = max if max > 1.05 * mn else 1.05 * mn
             min = min if min < 0.95 * mn else 0.95 * mn
@@ -189,11 +189,16 @@ def __calcVariantFrequenciesOneVocThread(voc: str, dfp : pd.DataFrame, samples :
         return voc, oneVOCdetailedCounts, oneVocdetailedCountsMask, variant_data_dictOneVOC
 
 
-def calcVariantFrequencies(sample_list : list[Data.OneBCdata] ,dfp : pd.DataFrame):
+def calcVariantFrequencies(sample_list : list[Data.OneBCdata] , dfp : pd.DataFrame):
     """Calculates the variant frequencies for each variant and sample.
     Will also generate the detailed counts (frequencies for each mutation) for each variant and sample and a similar df with a mask indicating which mutations were used to calculate mean. """
 
     start_time = time.time()
+    # if settings.useDateAxis:
+    #     dfp = dfpa.copy()
+    #     dfp.columns = [s.date for s in sample_list]
+    # else:
+    #     dfp = dfpa
     samples = dfp.columns
     # empty dataframe for mean and SD, values in object of type VariantData that holds mean, SD, boxplots .....
     variantDataMeansSD = pd.DataFrame(columns=[s for s in samples],

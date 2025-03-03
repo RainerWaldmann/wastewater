@@ -7,7 +7,8 @@ import variants.OneVariant as OneVariant
 
 
 regexformutsplitSubst = re.compile("([a-zA-Z]+)([0-9]+)([a-zA-Z]+)")
-regexformutsplitDel = re.compile("([0-9]+)((?i)del)([0-9]+)")
+regexformutsplitDel = re.compile("([0-9]+)(del)([0-9]+)", re.IGNORECASE)
+#regexformutsplitDel = re.compile("([0-9]+)((?i)del)([0-9]+)")
 
 class MutInfo:
     """Just a base class that holds common info on mutations"""

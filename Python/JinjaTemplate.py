@@ -123,7 +123,7 @@ table {
     {% for onelist in samples %}
     <tr>
     {% for oneitem in onelist %}
-    <td>{{oneitem}}</td> 
+    <td>{{oneitem.sample}}</td> 
     {% endfor %}
     </tr>
     {% endfor %}
@@ -132,11 +132,11 @@ table {
     <div>
     <h2>Parameters</h2>
     <table style="width:50%">
-    <tr><td>Min depth:</td><td>{{minDepth}}</td></tr>
-    <tr><td>Min frequency:</td><td>{{minFreq}}</td></tr>
-    <tr><td>Min frequency Heatmap:</td><td>{{minFreqForHeatMaps}}</td></tr>
+    <tr><td>Min depth:</td><td>{{settings.minDepth}}</td></tr>
+    <tr><td>Min frequency:</td><td>{{settings.minFreq}}</td></tr>
+    <tr><td>Min frequency Heatmap:</td><td>{{settings.minFreqForHeatMaps}}</td></tr>
 
-    <tr><td>Min indel frequency:</td><td>{{minIndelFreq}}</td></tr>
+    <tr><td>Min indel frequency:</td><td>{{settings.minIndelFrequency}}</td></tr>
     <tr><td>Range:</td><td>{{plotrg}}</td></tr>
     </table>
     </div>
@@ -199,7 +199,7 @@ Variants tested:
      {% for oneitem in onelist %}
      {% if variantData.variantPieList[oneitem] is not none %}
      <td>
-     <b>{{oneitem}}</b><br>
+     <b>{{oneitem.sample}}</b><br>
         {{variantData.variantPieList[oneitem]}}
      </td>
      {% endif %}

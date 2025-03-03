@@ -9,7 +9,7 @@ def countPepper(sample_list):
 
     for s in sample_list:
         #print ([name for name in s.trimstats.data.keys() if name in pepperPool][0])
-        if s.ppmov != 0:
+        if s.ppmov==s.ppmov and s.ppmov != 0:
             ratioSarsPpmov = (int(s.articPool1Count) / int(s.ppmov))
         else:
             ratioSarsPpmov = s.ppmov
@@ -46,6 +46,5 @@ def countPepper(sample_list):
         yaxis_title='SarsCov/ppmov ratio',
         hovermode = False
     )
-    if settings.doPlot :
-        pepperfig.show()
+
     return pepperfig, pepperDataFrameTest

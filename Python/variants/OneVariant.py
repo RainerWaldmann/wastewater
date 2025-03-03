@@ -25,7 +25,7 @@ class ChimeraInfo:
 class OneVariant:
     """ Holds data for one Sars-Cov2 variant. the list of mutations ..... """
     def __init__(self, name:str, comment:str, mutInfoList :  list[MutInfoSubst], minmutsforpass : int = 0, minstarredmutsforpass : int = 0, parent  = None , parentForCalc  = None, removeFromParentForCalc : bool = False, calcstrategy = None, doPrint : bool = True, childs  = [], histogramGroup = None,
-                 histogramOrderId = None, histogramOrderIdWithinBar = None,color : str = None, hatched : bool= False, excempFromChildsSum : bool = False, chimeraInfo : ChimeraInfo = None, showVOCplot : bool =False) :
+                 histogramOrderId = None, histogramOrderIdWithinBar = None,color : str = None, excempFromChildsSum : bool = False, chimeraInfo : ChimeraInfo = None) :
         self.name = name
         self.comment = comment
         self.minmutsforpass = minmutsforpass
@@ -41,12 +41,11 @@ class OneVariant:
         self.histogramOrderId = histogramOrderId # indicates bar number this should go in
         self.histogramOrderIdWithinBar = histogramOrderIdWithinBar  # indicates position within bar
         self.color = color
-        self.hatched = hatched
         self.excempFromChildsSum = excempFromChildsSum # e.g. BA.4 and BA.5 should not be counted as Omicron childs since BA4_BA5 is already used as Omicron child
         self.naMutList = None # contains list of mutations as string will be initialized at firs call to getNucAcidMutList. NOT USED YET
         self.requiredMutations = None
         self.chimeraInfo = chimeraInfo
-        self.showVOCplot = showVOCplot # whether to show special boxplot for this variant
+        #self.showVOCplot = showVOCplot # whether to show special boxplot for this variant
 
     def addChild(self,c):
         if not c in self.childs:
@@ -137,9 +136,9 @@ class OneVariant:
         parent = None if x != x else x
         x = data.loc['comment']
         comment = None if x != x else x
-        x = data.loc['remove counts from dummy parent']
-        removeFromParentForCalc = False if x != x else True
-        x = data.loc['dummy parent for calc']
+        x = data.loc['remove counts from virtual parent']
+        removeFromParentForCalc = False if x!=x  else data.loc['remove counts from virtual parent'].upper() == 'TRUE'
+        x = data.loc['virtual parent']
         parentforcalc = None if x != x else x
         x = data.loc['min muts for pass']
         minmutsforpass = 0 if x != x else int(x)
@@ -148,7 +147,7 @@ class OneVariant:
         x = data.loc['calcstrategy']
         calcstrategy = None if x != x else x
         x = data.loc['print']
-        doPrint = False if x != x or x != 'TRUE' else True
+        doPrint = False if x != x else data.loc['print'].upper() == 'TRUE'
         x = data.loc['histogram group']
         # histogram info are supplied in the format <histogramGroupName>/<histogramOrderId> - <histogramOrderIdWithinBar>, - <histogramOrderIdWithinBar> is optional
         #just a name for the histogram group
@@ -159,17 +158,15 @@ class OneVariant:
         histogramOrderIdWithinBar = 9999 if x !=x or len(x.split('/'))<2 or len(x.split('/')[1]) < 2 else int(x.split('/')[1].split('-')[1])
         x = data.loc['color']
         color  = None if x != x else x
-        x = data.loc['hatched']
-        hatched = False if x != x or x != 'TRUE' else True
         x = data.loc['excempt from child sum']
-        excempFromChildsSum = False if x != x or x != 'TRUE' else True
+        excempFromChildsSum = False if x != x else data.loc['excempt from child sum'].upper() == 'TRUE'
         x = data.loc['chimeraInfo']
         chimeraInfo = None if x != x  else ChimeraInfo.getInstance(x)
-        showVOCplot = False # TODO remove this and uncomment two following lines
+        #showVOCplot = False # TODO remove this and uncomment two following lines
         #x = data.loc['showVOCplot']
         #showVOCplot = False if x != x or x != 'TRUE' else True
         l = data.loc["mutations":].dropna()
         data = [mi.getMutInfo(x) for x in l if  not x.startswith('#')]                                                       #, (None if len(x.split('_')) < 2 else  x.split('_')[1].split(',')))
            #     for x in l if 'del' not in x and not x.startswith('#')] #  ignore cells starting with # !!!!!!!!! FOR NOW EXCLUDE DELETIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         return cls(name,comment,data,minmutsforpass,minstarredmutsforpass,parent,parentforcalc,removeFromParentForCalc,calcstrategy,doPrint,[],histogramGroup =  histogramGroupName, histogramOrderId=histogramOrderId,
-                   histogramOrderIdWithinBar = histogramOrderIdWithinBar, color = color, hatched = hatched, excempFromChildsSum = excempFromChildsSum, chimeraInfo = chimeraInfo, showVOCplot = showVOCplot)
+                   histogramOrderIdWithinBar = histogramOrderIdWithinBar, color = color,  excempFromChildsSum = excempFromChildsSum, chimeraInfo = chimeraInfo)
