@@ -1,7 +1,7 @@
 
 # Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
 
-##Authors
+### Authors
 Pauline Steichen <steichen@ipmc.cnrs.fr>
 Rainer Waldmann <waldmann@ipmc.cnrs.fr>
 
