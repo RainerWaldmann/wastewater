@@ -1,8 +1,9 @@
 
 # Workflow for analyzing Nanopore SARS-Cov-2 amplicon sequencing data from wastewater samples
 
-### Authors
+##Authors
 Pauline Steichen <steichen@ipmc.cnrs.fr>
+
 Rainer Waldmann <waldmann@ipmc.cnrs.fr>
 
 # Mapping, generation of variation frequency tables (each sample)
@@ -97,23 +98,25 @@ an alternate option is the iVar software https://github.com/andersen-lab/ivar. H
 
 # Variant Analysis 
 
-Python script parses folders in --inputDir , The folder name is used as the sample name 
+**Python script parses folders in --inputDir , The folder name is used as the sample name** 
 
-Usage:
-    > python main.py --inputDir [path to folder that contains one folder per sample]
+## Usage:
+    > python [main.py](Python/CagableaParser/main.py) --inputDir [path to folder that contains one folder per sample]
 
-Each folder within the specified folder corresponds to one sample and must contain:
+**Each folder within the specified folder corresponds to one sample and must contain:**
 
  - a variation frequency file with a name ending with 'ivar.tsv'      
  - a sequencing depth data file with a name ending with 'depth.tsv'
  
- Comments:
+ ## Comments:
  - ignores folders that do not contain a variation frequency file with a name ending with 'ivar.tsv'
 - ignores folders with names starting with '_'.
-- if removeFirstCharsFromSampleName = True in [settings.py](CagableaParserV0.3/settings.py), the first characters from the sample name until the first underscore at max pos 5 in the name will be removed. Used to define sorting order
-e.g.  a sample (folder name) AAA_..... will be shown before AAB_ . AAA_ and AAB_ will be removed in sample names in graphs, reports ..  
+- if removeFirstCharsFromSampleName = True in [settings.py](Python/CagableaParser/settings.py), the first characters from the sample name until the first underscore at max pos 5 in the name will be removed. 
+- Used to define sorting order in outputs
+e.g.  a sample (folder name) AAA_samplexxxx  AAB_sampleaaaa . AAA_ and AAB_ will be removed in sample names in graphs, reports ... samplexxxx will appear before sampleaaaa in the output  
 
-Output will be written to the folder provided as --inputDir
+## Output
+**Output will be written to the folder provided as --inputDir**
 
 Output includes:
 - a html report with heatmaps, coverage plots, variant frequencies
@@ -122,7 +125,7 @@ Output includes:
 - a tsv file with sequencing depth data for all positions "CoverageAllPositions.tsv"
  - a tsv file with sequencing depth data for every tenth position "CoveragePositionsReduced.tsv"
 - a tsv file with mean coverage values: coverageMeans.tsv
-- optionally pdf files with heat maps, pie charts .... See [settings.py](CagableaParserV0.3/settings.py) 
+- optionally pdf files with heat maps, pie charts .... See [settings.py](Python/CagableaParser/settings.py) for options 
 
 
 uses multithreading as much as this is possible with Python
@@ -132,7 +135,7 @@ uses multithreading as much as this is possible with Python
 First, the files from the different folders (samples) are read and the variation frequency data are filtered
 The following variations are filtered out:
 - Variation frequencies are set to 0 if the the mutation is both supported by a read QV in the given position of below 17 and the QV of the basecall supporting the variation is at least 7 below the QV of the reads supporting the wild-type sequence. Can be modified by changing conditionALT_QUAL in [settings.py](CagableaParserV0.3/settings.py)
-- Variations with an imbalanced forward/reverse read ratio of at least 3.5 . Optional, active if settings.do_filter_FWD_REV_balance=True in [settings.py](CagableaParserV0.3/settings.py). Max Imbalance factor is set with settings.maxALT_FwdRevImbalance.
+- Variations with an imbalanced forward/reverse read ratio of at least 3.5 . Optional, active if settings.do_filter_FWD_REV_balance=True in [settings.py](Python/CagableaParser/settings.py). Max Imbalance factor is set with settings.maxALT_FwdRevImbalance.
 
 The data are merged into one dataframe.
 
@@ -141,9 +144,9 @@ The data are merged into one dataframe.
 The Mutation frequencies for each lineage's characteristic mutations [Variants.tsv.txt](CagableaParserV0.3/Data/Variants.tsv.txt) are extracted from the variation frequency tables for each sample. The frequency of each lineage is set to the mean of its variant-defining mutation frequencies. Outliers were identified and excluded using an interquartile range (IQR)-based filter, ignoring values exceeding 0.1 times the IQR below the first quartile or above the third quartile as outliers. Can be adjusted with interq_range_outliers. To prevent filtering values near the mean when the IQR was small, values deviating less than 5% from the mean are preserved. 
 
 ### Variant definition file  
-(CagableaParserV0.3/Data/Variants.tsv.txt), a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
+[Variants.tsv.txt](Python/CagableaParser/Data/Variants.tsv.txt), a tsv file containing variant defining mutations , hierarchy and instructions for the graphs (colors ...) 
 
-**Lines:**
+**Lines of Variants.tsv.txt:**
 
 - Variant: Name of the variant  
 - variant_altname: Alternate name, can be empty. Currently not used by script.  
